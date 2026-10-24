@@ -1,0 +1,1131 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CodeArena | Gamified Adaptive Coding Arena</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        darkBg: '#090d16',
+                        cardBg: '#111827',
+                        cardBorder: '#1f2937',
+                        cyberCyan: '#06b6d4',
+                        neonPurple: '#8b5cf6',
+                        neonEmerald: '#10b981',
+                        neonGold: '#f59e0b',
+                        neonRose: '#f43f5e'
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['Fira Code', 'monospace']
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Google Fonts: Inter & Fira Code -->
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Canvas Confetti CDN for XP Victory Explosions -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #090d16;
+            color: #f3f4f6;
+            overflow-x: hidden;
+        }
+
+        /* Mouse Canvas Overlay */
+        #interactive-bg-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        /* Cyber Glassmorphism */
+        .cyber-panel {
+            background: rgba(17, 24, 39, 0.75);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(139, 92, 246, 0.15);
+            transition: transform 0.2s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .cyber-panel:hover {
+            border-color: rgba(6, 182, 212, 0.4);
+            box-shadow: 0 0 25px -5px rgba(139, 92, 246, 0.25);
+        }
+
+        /* Neon Glows */
+        .glow-purple { box-shadow: 0 0 30px -5px rgba(139, 92, 246, 0.4); }
+        .glow-cyan { box-shadow: 0 0 30px -5px rgba(6, 182, 212, 0.4); }
+        .glow-gold { box-shadow: 0 0 30px -5px rgba(245, 158, 11, 0.4); }
+
+        /* Grid pattern overlay */
+        .cyber-grid {
+            background-size: 40px 40px;
+            background-image: 
+                linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #090d16; }
+        ::-webkit-scrollbar-thumb { background: #1f2937; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #8b5cf6; }
+
+        /* Animated Pulsing Badges */
+        @keyframes pulseGlow {
+            0%, 100% { filter: drop-shadow(0 0 10px rgba(6, 182, 212, 0.6)); }
+            50% { filter: drop-shadow(0 0 20px rgba(139, 92, 246, 0.8)); }
+        }
+        .pulse-glow { animation: pulseGlow 3s infinite ease-in-out; }
+
+        /* 3D Tilt Card Class */
+        .tilt-card {
+            transform-style: preserve-3d;
+            will-change: transform;
+        }
+
+        /* Notification Toast Animations */
+        @keyframes slideInRight {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        .toast-animate { animation: slideInRight 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+    </style>
+</head>
+<body class="bg-darkBg text-slate-100 antialiased selection:bg-neonPurple selection:text-white cyber-grid relative">
+
+    <!-- Interactive Mouse-Driven Canvas background -->
+    <canvas id="interactive-bg-canvas"></canvas>
+
+    <!-- Toast Notification Container -->
+    <div id="toast-container" class="fixed top-24 right-5 z-50 flex flex-col space-y-3 pointer-events-none"></div>
+
+    <!-- Navigation Bar -->
+    <nav class="sticky top-0 z-40 cyber-panel border-b border-cardBorder bg-darkBg/80">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
+            <!-- Logo & Brand -->
+            <div class="flex items-center space-x-3 cursor-pointer" onclick="window.scrollTo({top: 0, behavior: 'smooth'})">
+                <div class="w-11 h-11 rounded-xl bg-gradient-to-tr from-neonPurple via-cyberCyan to-neonEmerald flex items-center justify-center glow-purple pulse-glow">
+                    <i class="fa-solid fa-gamepad text-black font-extrabold text-xl"></i>
+                </div>
+                <div>
+                    <span class="text-2xl font-black tracking-wider bg-gradient-to-r from-cyan-400 via-purple-400 to-emerald-400 bg-clip-text text-transparent">CodeArena</span>
+                    <span class="block text-[10px] uppercase tracking-widest text-slate-400 font-bold">Gamified Adaptive Coding</span>
+                </div>
+            </div>
+
+            <!-- Nav Links -->
+            <div class="hidden md:flex items-center space-x-8 text-sm font-semibold text-slate-300">
+                <a href="#quests" class="hover:text-cyberCyan transition-colors flex items-center space-x-1">
+                    <i class="fa-solid fa-map text-purple-400"></i><span>Quests</span>
+                </a>
+                <a href="#skill-tree" class="hover:text-cyberCyan transition-colors flex items-center space-x-1">
+                    <i class="fa-solid fa-sitemap text-cyan-400"></i><span>Skill Trees</span>
+                </a>
+                <a href="#battle-arena" class="hover:text-cyberCyan transition-colors flex items-center space-x-1">
+                    <i class="fa-solid fa-swords text-amber-400"></i><span>Battle Royale</span>
+                </a>
+                <a href="#techstack" class="hover:text-cyberCyan transition-colors flex items-center space-x-1">
+                    <i class="fa-solid fa-layer-group text-emerald-400"></i><span>Engine Tech</span>
+                </a>
+                <a href="#security" class="hover:text-cyberCyan transition-colors flex items-center space-x-1">
+                    <i class="fa-solid fa-shield-halved text-rose-400"></i><span>Sandbox Shield</span>
+                </a>
+            </div>
+
+            <!-- User Authentication & Player HUD Container -->
+            <div id="nav-user-container" class="flex items-center space-x-4">
+                <!-- Injected dynamically via JavaScript based on Auth state -->
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <header class="relative pt-20 pb-28 overflow-hidden z-10">
+        <div class="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[400px] bg-purple-600/15 rounded-full blur-[150px] pointer-events-none"></div>
+        <div class="absolute top-1/3 left-1/4 w-[500px] h-[300px] bg-cyan-500/10 rounded-full blur-[130px] pointer-events-none"></div>
+
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative text-center">
+            <!-- Game Mode Tag -->
+            <div class="inline-flex items-center space-x-2 px-4 py-2 rounded-full bg-slate-900/80 border border-purple-500/40 text-purple-300 font-mono text-xs mb-8 glow-purple">
+                <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+                <i class="fa-solid fa-gamepad text-cyan-400"></i>
+                <span class="font-bold tracking-widest uppercase">SEASON 1: ADAPTIVE REALM ONLINE</span>
+            </div>
+
+            <!-- Title -->
+            <h1 class="text-4xl sm:text-6xl lg:text-7xl font-black tracking-tight text-white max-w-5xl mx-auto leading-[1.1] mb-6">
+                Level Up Your Code. <br>
+                <span class="bg-gradient-to-r from-cyan-400 via-purple-400 to-emerald-400 bg-clip-text text-transparent">Master the Game.</span>
+            </h1>
+
+            <p class="text-lg sm:text-xl text-slate-300 max-w-3xl mx-auto mb-10 leading-relaxed font-light">
+                Step into an adaptive RPG coding arena where algorithms become quests, test cases become boss fights, and AI guides your quest path based on your real-time performance.
+            </p>
+
+            <!-- Hero Action Buttons -->
+            <div class="flex flex-col sm:flex-row items-center justify-center space-y-4 sm:space-y-0 sm:space-x-5 mb-16">
+                <button onclick="scrollToDemo()" class="w-full sm:w-auto px-8 py-4 rounded-xl text-base font-black uppercase tracking-wider text-black bg-gradient-to-r from-cyan-400 via-emerald-400 to-purple-400 hover:opacity-90 transition-all glow-purple shadow-xl flex items-center justify-center space-x-3">
+                    <i class="fa-solid fa-bolt text-black text-lg"></i>
+                    <span>Start Demo Battle</span>
+                </button>
+                <button onclick="openAuthModal('login')" class="w-full sm:w-auto px-8 py-4 rounded-xl text-base font-bold text-slate-200 bg-cardBg hover:bg-slate-800 transition-all border border-cardBorder flex items-center justify-center space-x-3">
+                    <i class="fa-solid fa-user-ninja text-purple-400"></i>
+                    <span>Player Login Portal</span>
+                </button>
+            </div>
+
+            <!-- Gamified Stats Cards -->
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 max-w-5xl mx-auto">
+                <div class="cyber-panel p-5 rounded-2xl tilt-card text-left">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-xs font-mono uppercase text-slate-400">CURRENT TIER</span>
+                        <i class="fa-solid fa-shield-cat text-cyan-400 text-lg"></i>
+                    </div>
+                    <div class="text-xl font-black text-white" id="hero-stat-rank">Grandmaster</div>
+                    <div class="text-xs text-cyan-400 font-mono mt-1">Top 2% Ranked</div>
+                </div>
+
+                <div class="cyber-panel p-5 rounded-2xl tilt-card text-left">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-xs font-mono uppercase text-slate-400">AI ADAPTIVE ENGINE</span>
+                        <i class="fa-solid fa-brain text-purple-400 text-lg"></i>
+                    </div>
+                    <div class="text-xl font-black text-white">Dynamic Flow</div>
+                    <div class="text-xs text-purple-400 font-mono mt-1">Weakness Targeting</div>
+                </div>
+
+                <div class="cyber-panel p-5 rounded-2xl tilt-card text-left">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-xs font-mono uppercase text-slate-400">SANDBOX JUDGE</span>
+                        <i class="fa-solid fa-microchip text-emerald-400 text-lg"></i>
+                    </div>
+                    <div class="text-xl font-black text-white">&lt; 50ms Verdict</div>
+                    <div class="text-xs text-emerald-400 font-mono mt-1">Zero Breach Sandbox</div>
+                </div>
+
+                <div class="cyber-panel p-5 rounded-2xl tilt-card text-left">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-xs font-mono uppercase text-slate-400">BATTLE ROYALE</span>
+                        <i class="fa-solid fa-trophy text-amber-400 text-lg"></i>
+                    </div>
+                    <div class="text-xl font-black text-white">Timed Guild Wars</div>
+                    <div class="text-xs text-amber-400 font-mono mt-1">Live Leaderboards</div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Quests & Boss Fights Section -->
+    <section id="quests" class="py-24 relative border-t border-cardBorder">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+            <div class="text-center max-w-3xl mx-auto mb-16">
+                <span class="text-xs font-bold uppercase tracking-widest text-cyan-400 bg-cyan-950/60 border border-cyan-500/30 px-3 py-1 rounded-full">Algorithmic Dungeons</span>
+                <h2 class="text-3xl sm:text-5xl font-black text-white mt-4 mb-4">Quests & Boss Fights</h2>
+                <p class="text-slate-400">Standard programming problems reimagined as progressive gaming encounters with loot, XP drops, and boss raids.</p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <!-- Novice Quest Card -->
+                <div class="cyber-panel p-8 rounded-2xl tilt-card relative border-emerald-500/30">
+                    <div class="flex justify-between items-start mb-6">
+                        <span class="px-3 py-1 rounded-md bg-emerald-500/20 text-emerald-400 font-mono text-xs font-bold uppercase border border-emerald-500/40">Tier 1 • Novice Quest</span>
+                        <span class="text-amber-400 font-mono text-xs font-bold">+150 XP</span>
+                    </div>
+                    <h3 class="text-2xl font-black text-white mb-3">The Array Sentinel</h3>
+                    <p class="text-slate-400 text-sm mb-6 leading-relaxed">
+                        Conquer array traversal and hash table lookups to breach the gatekeeper's defense in O(N) time complexity.
+                    </p>
+                    <div class="p-4 bg-slate-900 rounded-xl border border-cardBorder font-mono text-xs space-y-2 mb-6">
+                        <div class="text-slate-400 flex justify-between"><span>Boss HP:</span> <span class="text-emerald-400">100 / 100</span></div>
+                        <div class="w-full bg-slate-800 h-2 rounded-full overflow-hidden"><div class="bg-emerald-400 h-full w-full"></div></div>
+                        <div class="text-slate-500 text-[11px] pt-1">Topic: Hash Maps & Two Pointers</div>
+                    </div>
+                    <button onclick="scrollToDemo()" class="w-full py-3 rounded-xl bg-slate-800 hover:bg-emerald-500 hover:text-black font-bold text-xs uppercase tracking-wider transition-all border border-emerald-500/30">
+                        Engage Quest
+                    </button>
+                </div>
+
+                <!-- Veteran Boss Card -->
+                <div class="cyber-panel p-8 rounded-2xl tilt-card relative border-amber-500/40 glow-gold">
+                    <div class="flex justify-between items-start mb-6">
+                        <span class="px-3 py-1 rounded-md bg-amber-500/20 text-amber-400 font-mono text-xs font-bold uppercase border border-amber-500/40">Tier 2 • Elite Raid</span>
+                        <span class="text-amber-400 font-mono text-xs font-bold">+450 XP</span>
+                    </div>
+                    <h3 class="text-2xl font-black text-white mb-3">Graph Goliath: Shortest Path</h3>
+                    <p class="text-slate-400 text-sm mb-6 leading-relaxed">
+                        Navigate the labyrinthian maze using Dijkstra's algorithm before time expires and execution limits breach.
+                    </p>
+                    <div class="p-4 bg-slate-900 rounded-xl border border-cardBorder font-mono text-xs space-y-2 mb-6">
+                        <div class="text-slate-400 flex justify-between"><span>Boss HP:</span> <span class="text-amber-400">650 / 650</span></div>
+                        <div class="w-full bg-slate-800 h-2 rounded-full overflow-hidden"><div class="bg-amber-400 h-full w-full"></div></div>
+                        <div class="text-slate-500 text-[11px] pt-1">Topic: Graphs & Priority Queues</div>
+                    </div>
+                    <button onclick="scrollToDemo()" class="w-full py-3 rounded-xl bg-slate-800 hover:bg-amber-500 hover:text-black font-bold text-xs uppercase tracking-wider transition-all border border-amber-500/30">
+                        Raid Boss
+                    </button>
+                </div>
+
+                <!-- Mythic Boss Card -->
+                <div class="cyber-panel p-8 rounded-2xl tilt-card relative border-purple-500/40 glow-purple">
+                    <div class="flex justify-between items-start mb-6">
+                        <span class="px-3 py-1 rounded-md bg-purple-500/20 text-purple-300 font-mono text-xs font-bold uppercase border border-purple-500/40">Tier 3 • Mythic Boss</span>
+                        <span class="text-amber-400 font-mono text-xs font-bold">+1,200 XP</span>
+                    </div>
+                    <h3 class="text-2xl font-black text-white mb-3">Dynamic Overlord: Memoization</h3>
+                    <p class="text-slate-400 text-sm mb-6 leading-relaxed">
+                        Defeat overlapping subproblems using memoization and bottom-up DP state transitions.
+                    </p>
+                    <div class="p-4 bg-slate-900 rounded-xl border border-cardBorder font-mono text-xs space-y-2 mb-6">
+                        <div class="text-slate-400 flex justify-between"><span>Boss HP:</span> <span class="text-purple-400">2,500 / 2,500</span></div>
+                        <div class="w-full bg-slate-800 h-2 rounded-full overflow-hidden"><div class="bg-purple-400 h-full w-full"></div></div>
+                        <div class="text-slate-500 text-[11px] pt-1">Topic: DP Matrix & Bitmasking</div>
+                    </div>
+                    <button onclick="scrollToDemo()" class="w-full py-3 rounded-xl bg-slate-800 hover:bg-purple-500 hover:text-white font-bold text-xs uppercase tracking-wider transition-all border border-purple-500/30">
+                        Challenge Overlord
+                    </button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Skill Trees & Player Stats -->
+    <section id="skill-tree" class="py-24 relative bg-slate-950/60 border-t border-cardBorder">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+            <div class="text-center max-w-3xl mx-auto mb-16">
+                <span class="text-xs font-bold uppercase tracking-widest text-purple-400 bg-purple-950/60 border border-purple-500/30 px-3 py-1 rounded-full">Adaptive Skill Progression</span>
+                <h2 class="text-3xl sm:text-5xl font-black text-white mt-4 mb-4">Player Skill Trees & Badges</h2>
+                <p class="text-slate-400">Unlock node abilities across algorithmic branches and display your badges in the Achievement Hall.</p>
+            </div>
+
+            <!-- Skill Tree Interactive Node Map -->
+            <div class="cyber-panel p-8 sm:p-12 rounded-3xl border-purple-500/30 mb-12">
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    <!-- Branch 1 -->
+                    <div class="space-y-6">
+                        <div class="flex items-center space-x-3 text-cyan-400 font-black font-mono">
+                            <i class="fa-solid fa-code-branch text-xl"></i>
+                            <span>DATA STRUCTURES TREE</span>
+                        </div>
+                        <div class="p-4 rounded-xl bg-slate-900 border border-cyan-500/40 cursor-pointer hover:bg-cyan-950/30 transition-all">
+                            <div class="flex justify-between text-xs font-mono text-cyan-400 mb-1"><span>NODE 01</span><span class="text-emerald-400">UNLOCKED ✓</span></div>
+                            <h4 class="font-bold text-white">Arrays & Strings Master</h4>
+                            <div class="text-xs text-slate-400 mt-1">100% Mastery • +5% Crit Logic Speed</div>
+                        </div>
+                        <div class="p-4 rounded-xl bg-slate-900 border border-purple-500/40 cursor-pointer hover:bg-purple-950/30 transition-all">
+                            <div class="flex justify-between text-xs font-mono text-purple-400 mb-1"><span>NODE 02</span><span class="text-amber-400">IN PROGRESS (80%)</span></div>
+                            <h4 class="font-bold text-white">Binary Trees & Heaps</h4>
+                            <div class="text-xs text-slate-400 mt-1">8/10 Quests Cleared</div>
+                        </div>
+                        <div class="p-4 rounded-xl bg-slate-900/40 border border-slate-800 opacity-60">
+                            <div class="flex justify-between text-xs font-mono text-slate-500 mb-1"><span>NODE 03</span><span>LOCKED</span></div>
+                            <h4 class="font-bold text-slate-400">Segment Trees & Tries</h4>
+                            <div class="text-xs text-slate-600 mt-1">Requires Level 30</div>
+                        </div>
+                    </div>
+
+                    <!-- Branch 2 -->
+                    <div class="space-y-6">
+                        <div class="flex items-center space-x-3 text-purple-400 font-black font-mono">
+                            <i class="fa-solid fa-brain text-xl"></i>
+                            <span>ALGORITHMIC LOGIC TREE</span>
+                        </div>
+                        <div class="p-4 rounded-xl bg-slate-900 border border-emerald-500/40 cursor-pointer hover:bg-emerald-950/30 transition-all">
+                            <div class="flex justify-between text-xs font-mono text-emerald-400 mb-1"><span>NODE 01</span><span class="text-emerald-400">UNLOCKED ✓</span></div>
+                            <h4 class="font-bold text-white">Sorting & Binary Search</h4>
+                            <div class="text-xs text-slate-400 mt-1">100% Mastery</div>
+                        </div>
+                        <div class="p-4 rounded-xl bg-slate-900 border border-red-500/40 cursor-pointer hover:bg-red-950/30 transition-all">
+                            <div class="flex justify-between text-xs font-mono text-red-400 mb-1"><span>NODE 02</span><span class="text-red-400">WEAK SPOT DETECTED</span></div>
+                            <h4 class="font-bold text-white">Dynamic Programming</h4>
+                            <div class="text-xs text-slate-400 mt-1">AI Recommends: 3 Practice Quests</div>
+                        </div>
+                        <div class="p-4 rounded-xl bg-slate-900/40 border border-slate-800 opacity-60">
+                            <div class="flex justify-between text-xs font-mono text-slate-500 mb-1"><span>NODE 03</span><span>LOCKED</span></div>
+                            <h4 class="font-bold text-slate-400">Graph Flow & Matching</h4>
+                            <div class="text-xs text-slate-600 mt-1">Requires Node 02 Clearance</div>
+                        </div>
+                    </div>
+
+                    <!-- Badges Hall -->
+                    <div class="space-y-6">
+                        <div class="flex items-center space-x-3 text-amber-400 font-black font-mono">
+                            <i class="fa-solid fa-medal text-xl"></i>
+                            <span>ACHIEVEMENT BADGES</span>
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div class="p-3 bg-slate-900 rounded-xl border border-amber-500/30 text-center">
+                                <i class="fa-solid fa-bolt text-amber-400 text-2xl mb-1"></i>
+                                <div class="text-xs font-bold text-white">Speed Demon</div>
+                                <div class="text-[10px] text-slate-400">&lt; 10ms execution</div>
+                            </div>
+                            <div class="p-3 bg-slate-900 rounded-xl border border-cyan-500/30 text-center">
+                                <i class="fa-solid fa-fire-flame-curved text-cyan-400 text-2xl mb-1"></i>
+                                <div class="text-xs font-bold text-white">7-Day Fire</div>
+                                <div class="text-[10px] text-slate-400">Streak Champion</div>
+                            </div>
+                            <div class="p-3 bg-slate-900 rounded-xl border border-purple-500/30 text-center">
+                                <i class="fa-solid fa-chess-knight text-purple-400 text-2xl mb-1"></i>
+                                <div class="text-xs font-bold text-white">Overlord Slayer</div>
+                                <div class="text-[10px] text-slate-400">DP Boss Defeated</div>
+                            </div>
+                            <div class="p-3 bg-slate-900 rounded-xl border border-emerald-500/30 text-center">
+                                <i class="fa-solid fa-brain text-emerald-400 text-2xl mb-1"></i>
+                                <div class="text-xs font-bold text-white">Zero Error</div>
+                                <div class="text-[10px] text-slate-400">10 Submissions Accepted</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- BYTE RACER ARCADE SECTION -->
+        <section id="arcade" class="py-16 px-6 max-w-5xl mx-auto">
+            <div class="glass-card p-8 rounded-3xl border border-amber-500/30 text-center relative overflow-hidden">
+                <div class="absolute -right-10 -top-10 w-40 h-40 bg-amber-500/10 rounded-full blur-2xl"></div>
+                <div class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs font-semibold mb-4">
+                    <i class="fa-solid fa-gamepad"></i> ARCADE SPEEDRUN CHALLENGE
+                </div>
+                <h3 class="text-3xl font-extrabold text-white mb-3">Byte Racer: Syntax Speedrun</h3>
+                <p class="text-gray-400 max-w-xl mx-auto mb-6 text-sm">
+                    Test your coding reflexes! Match the correct programming syntax or snippet before the nitro timer hits zero to earn massive XP.
+                </p>
+
+                <!-- Arcade Game Console Box -->
+                <div id="arcade-game-box" class="bg-darkBg p-6 rounded-2xl border border-cardBorder max-w-xl mx-auto text-left">
+                    <div class="flex justify-between items-center mb-4 text-xs font-bold">
+                        <span class="text-cyan-400">SCORE: <span id="arcade-score">0</span></span>
+                        <span class="text-amber-400">TIMER: <span id="arcade-timer">60</span>s</span>
+                    </div>
+                    <div id="arcade-question" class="code-font text-sm text-yellow-300 bg-cardBg p-4 rounded-xl mb-4 border border-cardBorder">
+                        Press "Start Race" to begin coding speedrun!
+                    </div>
+                    <div id="arcade-options" class="grid grid-cols-1 gap-2 mb-4">
+                        <!-- Options injected dynamically -->
+                    </div>
+                    <button id="arcade-start-btn" onclick="startByteRacer()" class="w-full py-3 bg-gradient-to-r from-amber-500 to-orange-600 text-black font-bold text-sm rounded-xl hover:scale-[1.02] transition">
+                        Start Byte Racer
+                    </button>
+                </div>
+            </div>
+        </section>
+        
+        <!-- Interactive Live Code & Judge Arena Demo -->
+    <section id="battle-arena" class="py-24 relative border-t border-cardBorder">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+            <div class="text-center max-w-3xl mx-auto mb-16">
+                <span class="text-xs font-bold uppercase tracking-widest text-emerald-400 bg-emerald-950/60 border border-emerald-500/30 px-3 py-1 rounded-full">Interactive Battle Arena</span>
+                <h2 class="text-3xl sm:text-5xl font-black text-white mt-4 mb-4">Simulated Sandboxed Arena</h2>
+                <p class="text-slate-400">Execute code inside our simulated sandbox judge. Earn real-time XP and victory particles upon acceptance!</p>
+            </div>
+
+            <!-- Arena Terminal Widget -->
+            <div class="cyber-panel rounded-3xl border-purple-500/30 overflow-hidden max-w-5xl mx-auto shadow-2xl">
+                <!-- Top Console Header -->
+                <div class="bg-slate-950 px-6 py-4 border-b border-cardBorder flex flex-col sm:flex-row items-center justify-between gap-4">
+                    <div class="flex items-center space-x-3">
+                        <span class="w-3 h-3 rounded-full bg-emerald-400 animate-pulse"></span>
+                        <span class="font-bold font-mono text-white text-sm">QUEST #104: TWO SUM RECURSION</span>
+                        <span class="px-2 py-0.5 rounded bg-purple-500/20 text-purple-300 font-mono text-[10px] uppercase font-bold">+250 XP REWARD</span>
+                    </div>
+
+                    <div class="flex items-center space-x-3">
+                        <select id="demo-lang" class="bg-slate-900 text-cyan-400 text-xs font-mono px-3 py-2 rounded-xl border border-cardBorder outline-none focus:border-cyan-400">
+                            <option value="python">Python 3.10</option>
+                            <option value="cpp">C++ 20 (GCC)</option>
+                            <option value="java">Java 17 (OpenJDK)</option>
+                        </select>
+                        <button onclick="executeBattleSimulation()" id="submit-code-btn" class="px-6 py-2 rounded-xl text-xs font-black uppercase tracking-wider text-black bg-gradient-to-r from-cyan-400 via-emerald-400 to-purple-400 hover:opacity-90 transition-all glow-cyan flex items-center space-x-2">
+                            <i class="fa-solid fa-gamepad"></i>
+                            <span>Submit Solution</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Editor & Judge Split Grid -->
+                <div class="grid grid-cols-1 lg:grid-cols-2">
+                    <!-- Code Editor Screen -->
+                    <div class="p-6 bg-slate-950 border-r border-cardBorder font-mono text-xs sm:text-sm">
+                        <div class="text-slate-500 text-xs mb-3 flex justify-between items-center">
+                            <span>// MONACO CODE EDITOR SIMULATOR</span>
+                            <span class="text-slate-600">UTF-8</span>
+                        </div>
+                        <textarea id="arena-code-input" rows="11" class="w-full bg-slate-900 text-slate-200 p-4 rounded-xl border border-cardBorder outline-none focus:border-purple-500 resize-none font-mono">def solveTwoSum(nums, target):
+    # O(N) Hashmap solution
+    seen = {}
+    for idx, val in enumerate(nums):
+        complement = target - val
+        if complement in seen:
+            return [seen[complement], idx]
+        seen[val] = idx
+    return []</textarea>
+                    </div>
+
+                    <!-- Judge Execution Log -->
+                    <div class="p-6 bg-darkBg flex flex-col justify-between font-mono text-xs">
+                        <div>
+                            <div class="flex items-center justify-between mb-3">
+                                <span class="text-slate-400 uppercase tracking-wider text-[11px]">JUDGE VERDICT LOG</span>
+                                <span id="verdict-status-tag" class="px-3 py-1 rounded-md text-[10px] font-bold bg-slate-800 text-slate-400">STANDBY</span>
+                            </div>
+                            <div id="arena-output-console" class="bg-slate-950 p-4 rounded-xl border border-cardBorder h-48 overflow-y-auto text-slate-300 space-y-2">
+                                <span class="text-slate-600">// Press "Submit Solution" to trigger isolated Judge0 container evaluation...</span>
+                            </div>
+                        </div>
+
+                        <!-- Execution Telemetry -->
+                        <div class="mt-4 pt-4 border-t border-cardBorder flex items-center justify-between text-[11px] text-slate-400">
+                            <span id="telemetry-time">Exec Time: -- ms</span>
+                            <span id="telemetry-mem">Memory: -- MB</span>
+                            <span id="telemetry-xp" class="text-amber-400 font-bold">XP Earned: 0</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Proposed Technology Stack -->
+    <section id="techstack" class="py-24 relative bg-slate-950/60 border-t border-cardBorder">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+            <div class="text-center max-w-3xl mx-auto mb-16">
+                <span class="text-xs font-bold uppercase tracking-widest text-cyan-400 bg-cyan-950/60 border border-cyan-500/30 px-3 py-1 rounded-full">System Engine</span>
+                <h2 class="text-3xl sm:text-5xl font-black text-white mt-4 mb-4">Proposed Technology Stack</h2>
+                <p class="text-slate-400">Engineered with high-throughput backend services and reactive real-time frontend frameworks.</p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="cyber-panel p-6 rounded-2xl tilt-card">
+                    <i class="fa-brands fa-react text-cyan-400 text-3xl mb-4"></i>
+                    <h4 class="text-lg font-bold text-white mb-2">Frontend Application</h4>
+                    <p class="text-sm text-slate-400 mb-4">React SPA, HTML5 Canvas graphics engine, and Tailwind CSS for gaming UI elements.</p>
+                    <span class="text-xs font-mono text-cyan-400 bg-cyan-950 px-2.5 py-1 rounded border border-cyan-500/30">React & Tailwind</span>
+                </div>
+
+                <div class="cyber-panel p-6 rounded-2xl tilt-card">
+                    <i class="fa-solid fa-server text-emerald-400 text-3xl mb-4"></i>
+                    <h4 class="text-lg font-bold text-white mb-2">Backend REST API</h4>
+                    <p class="text-sm text-slate-400 mb-4">Python FastAPI / Django REST microservices managing game state and player telemetry.</p>
+                    <span class="text-xs font-mono text-emerald-400 bg-emerald-950 px-2.5 py-1 rounded border border-emerald-500/30">Python FastAPI</span>
+                </div>
+
+                <div class="cyber-panel p-6 rounded-2xl tilt-card">
+                    <i class="fa-solid fa-microchip text-purple-400 text-3xl mb-4"></i>
+                    <h4 class="text-lg font-bold text-white mb-2">Sandboxed Execution</h4>
+                    <p class="text-sm text-slate-400 mb-4">Judge0 API containerized runner enforcing strict CPU time and RAM boundaries.</p>
+                    <span class="text-xs font-mono text-purple-300 bg-purple-950 px-2.5 py-1 rounded border border-purple-500/30">Judge0 & Docker</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Security Considerations Section -->
+    <section id="security" class="py-24 relative border-t border-cardBorder">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+            <div class="cyber-panel p-8 sm:p-12 rounded-3xl border-rose-500/30 relative overflow-hidden">
+                <div class="flex flex-col lg:flex-row items-center justify-between gap-8">
+                    <div class="max-w-2xl">
+                        <span class="text-xs font-bold uppercase tracking-widest text-rose-400 bg-rose-950/60 px-3 py-1 rounded-full border border-rose-500/30">Zero-Trust Sandbox</span>
+                        <h3 class="text-3xl font-black text-white mt-4 mb-3">Isolated Judge Container Shield</h3>
+                        <p class="text-slate-300 text-sm sm:text-base leading-relaxed">
+                            Submitted code executes inside jailed Docker runtime containers disconnected from server file systems and networks, enforcing CPU quotas, restricted memory limits, and strict syscall filtering.
+                        </p>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4 shrink-0 w-full lg:w-auto font-mono text-xs">
+                        <div class="bg-slate-950 p-4 rounded-xl border border-cardBorder text-center">
+                            <i class="fa-solid fa-lock text-rose-400 text-xl mb-1"></i>
+                            <div class="text-white font-bold">Isolated Memory</div>
+                            <div class="text-slate-500 text-[10px]">256 MB Limit</div>
+                        </div>
+                        <div class="bg-slate-950 p-4 rounded-xl border border-cardBorder text-center">
+                            <i class="fa-solid fa-stopwatch text-cyan-400 text-xl mb-1"></i>
+                            <div class="text-white font-bold">CPU Time Cap</div>
+                            <div class="text-slate-500 text-[10px]">2.0s Max Execution</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- FULL FEATURED GAMIFIED FOOTER (RESOURCES REMOVED) -->
+    <footer class="bg-slate-950 border-t border-cardBorder relative z-10 pt-16 pb-12">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10 mb-12">
+                
+                <!-- Brand Info Header -->
+                <div class="lg:col-span-2 space-y-4">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-neonPurple via-cyberCyan to-neonEmerald flex items-center justify-center glow-purple">
+                            <i class="fa-solid fa-gamepad text-black font-extrabold text-lg"></i>
+                        </div>
+                        <span class="text-2xl font-black tracking-wider bg-gradient-to-r from-cyan-400 via-purple-400 to-emerald-400 bg-clip-text text-transparent">CodeArena</span>
+                    </div>
+                    <p class="text-slate-400 text-sm max-w-sm font-light">
+                        Level Up Your Code. Master the Game. An adaptive programming and assessment platform combining algorithmic quests, sandboxed evaluations, and skill tree analytics.
+                    </p>
+                    <!-- System Operational Badge -->
+                    <div class="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-slate-900 border border-emerald-500/30 text-emerald-400 text-xs font-mono">
+                        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+                        <span>All Systems Operational 🟢</span>
+                    </div>
+                </div>
+
+                <!-- Footer Links: Platform -->
+                <div>
+                    <h4 class="text-xs font-bold uppercase tracking-widest text-cyan-400 mb-4 font-mono">Platform</h4>
+                    <ul class="space-y-2.5 text-sm text-slate-400">
+                        <li><a href="#quests" class="hover:text-white transition-colors">Quests & Boss Fights</a></li>
+                        <li><a href="#battle-arena" class="hover:text-white transition-colors">Arena Battle Royale</a></li>
+                        <li><a href="#skill-tree" class="hover:text-white transition-colors">Skill Trees</a></li>
+                        <li><a href="#battle-arena" class="hover:text-white transition-colors">Leaderboard Ranks</a></li>
+                    </ul>
+                </div>
+
+                <!-- Footer Links: Engine & Security -->
+                <div>
+                    <h4 class="text-xs font-bold uppercase tracking-widest text-purple-400 mb-4 font-mono">Engine</h4>
+                    <ul class="space-y-2.5 text-sm text-slate-400">
+                        <li><a href="#skill-tree" class="hover:text-white transition-colors">XP & Badges System</a></li>
+                        <li><a href="#techstack" class="hover:text-white transition-colors">AI Adaptive Engine</a></li>
+                        <li><a href="#security" class="hover:text-white transition-colors">Sandboxed Judge</a></li>
+                        <li><a href="#techstack" class="hover:text-white transition-colors">FastAPI & Monaco</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Bottom Divider & Socials -->
+            <div class="pt-8 border-t border-cardBorder flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500 font-mono">
+                <div>
+                    © 2026 CodeArena. All rights reserved. Adaptive Coding Arena System.
+                </div>
+                <div class="flex items-center space-x-5 text-base text-slate-400">
+                    <a href="#" class="hover:text-cyan-400 transition-colors"><i class="fa-brands fa-github"></i></a>
+                    <a href="#" class="hover:text-purple-400 transition-colors"><i class="fa-brands fa-discord"></i></a>
+                    <a href="#" class="hover:text-emerald-400 transition-colors"><i class="fa-brands fa-twitter"></i></a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Interactive Authentication & Player Modal Portal -->
+    <div id="auth-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md hidden p-4 overflow-y-auto">
+        <div class="cyber-panel p-6 sm:p-8 rounded-3xl max-w-md w-full border border-purple-500/40 relative glow-purple my-auto">
+            <button onclick="closeAuthModal()" class="absolute top-5 right-5 text-slate-400 hover:text-white text-xl">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+            
+            <!-- Modal Header Tabs -->
+            <div class="flex border-b border-cardBorder mb-6 pb-2 space-x-4 font-mono text-sm">
+                <button id="tab-login-btn" onclick="switchAuthTab('login')" class="text-cyan-400 font-bold border-b-2 border-cyan-400 pb-2 transition-all flex items-center space-x-2">
+                    <i class="fa-solid fa-right-to-bracket"></i><span>LOGIN</span>
+                </button>
+                <button id="tab-register-btn" onclick="switchAuthTab('register')" class="text-slate-400 hover:text-white pb-2 transition-all flex items-center space-x-2">
+                    <i class="fa-solid fa-user-plus"></i><span>REGISTER</span>
+                </button>
+            </div>
+
+            <!-- Demo Fill Credentials Hint -->
+            <div onclick="autoFillDemoAuth()" class="p-3 mb-5 rounded-xl bg-purple-950/40 border border-purple-500/30 text-xs text-purple-300 font-mono flex items-center justify-between cursor-pointer hover:bg-purple-900/50 transition-all">
+                <div class="flex items-center space-x-2">
+                    <i class="fa-solid fa-key text-amber-400"></i>
+                    <span><strong>Demo Creds:</strong> player@codearena.gg</span>
+                </div>
+                <span class="text-[10px] bg-purple-500/30 px-2 py-0.5 rounded text-cyan-300">AUTO-FILL</span>
+            </div>
+
+            <!-- Login Form -->
+            <form id="login-form" onsubmit="handleLoginSubmit(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-mono uppercase text-slate-300 mb-1">Email / Player Handle</label>
+                    <div class="relative">
+                        <i class="fa-solid fa-user absolute left-3.5 top-3 text-slate-500 text-xs"></i>
+                        <input type="text" id="login-email" required placeholder="player@codearena.gg" class="w-full bg-slate-900 border border-cardBorder rounded-xl pl-9 pr-4 py-2.5 text-xs text-white outline-none focus:border-cyan-400 transition-all">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-mono uppercase text-slate-300 mb-1">Password</label>
+                    <div class="relative">
+                        <i class="fa-solid fa-lock absolute left-3.5 top-3 text-slate-500 text-xs"></i>
+                        <input type="password" id="login-password" required placeholder="••••••••" class="w-full bg-slate-900 border border-cardBorder rounded-xl pl-9 pr-4 py-2.5 text-xs text-white outline-none focus:border-cyan-400 transition-all">
+                    </div>
+                </div>
+
+                <div class="flex items-center justify-between text-xs text-slate-400 font-mono">
+                    <label class="flex items-center space-x-2 cursor-pointer">
+                        <input type="checkbox" id="remember-me" checked class="rounded border-cardBorder bg-slate-900 text-cyan-400 focus:ring-0">
+                        <span>Remember Me</span>
+                    </label>
+                    <a href="#" onclick="showToast('Password reset link dispatched to terminal.', 'info')" class="hover:text-cyan-400">Forgot Code?</a>
+                </div>
+
+                <button type="submit" id="login-submit-btn" class="w-full py-3.5 rounded-xl font-black text-xs uppercase tracking-wider text-black bg-gradient-to-r from-cyan-400 via-emerald-400 to-purple-400 hover:opacity-90 transition-all glow-cyan shadow-lg flex items-center justify-center space-x-2">
+                    <i class="fa-solid fa-bolt"></i><span>Authenticate Arena Access</span>
+                </button>
+            </form>
+
+            <!-- Register Form -->
+            <form id="register-form" onsubmit="handleRegisterSubmit(event)" class="space-y-4 hidden">
+                <div>
+                    <label class="block text-xs font-mono uppercase text-slate-300 mb-1">Player Handle (Username)</label>
+                    <div class="relative">
+                        <i class="fa-solid fa-id-badge absolute left-3.5 top-3 text-slate-500 text-xs"></i>
+                        <input type="text" id="reg-handle" required placeholder="CyberSlayer99" class="w-full bg-slate-900 border border-cardBorder rounded-xl pl-9 pr-4 py-2.5 text-xs text-white outline-none focus:border-purple-400 transition-all">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-mono uppercase text-slate-300 mb-1">Email Address</label>
+                    <div class="relative">
+                        <i class="fa-solid fa-envelope absolute left-3.5 top-3 text-slate-500 text-xs"></i>
+                        <input type="email" id="reg-email" required placeholder="slayer@codearena.gg" class="w-full bg-slate-900 border border-cardBorder rounded-xl pl-9 pr-4 py-2.5 text-xs text-white outline-none focus:border-purple-400 transition-all">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-mono uppercase text-slate-300 mb-1">Password</label>
+                    <div class="relative">
+                        <i class="fa-solid fa-key absolute left-3.5 top-3 text-slate-500 text-xs"></i>
+                        <input type="password" id="reg-password" required placeholder="••••••••" class="w-full bg-slate-900 border border-cardBorder rounded-xl pl-9 pr-4 py-2.5 text-xs text-white outline-none focus:border-purple-400 transition-all">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-mono uppercase text-slate-300 mb-1">Choose Starter Class</label>
+                    <select id="reg-class" class="w-full bg-slate-900 border border-cardBorder rounded-xl px-3 py-2.5 text-xs text-cyan-300 outline-none focus:border-purple-400 font-mono">
+                        <option value="Algorithmic Mage">🧙‍♂️ Algorithmic Mage (+10% DP Boost)</option>
+                        <option value="Byte Warrior">⚔️ Byte Warrior (+15% Speed)</option>
+                        <option value="System Architect">🛡️ System Architect (Zero Leak Guard)</option>
+                    </select>
+                </div>
+
+                <button type="submit" id="reg-submit-btn" class="w-full py-3.5 rounded-xl font-black text-xs uppercase tracking-wider text-black bg-gradient-to-r from-purple-400 via-cyan-400 to-emerald-400 hover:opacity-90 transition-all glow-purple shadow-lg flex items-center justify-center space-x-2">
+                    <i class="fa-solid fa-shield-halved"></i><span>Create Player Profile</span>
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- JavaScript Engine -->
+    <script>
+        // 1. Interactive Canvas Background Engine
+        const canvas = document.getElementById('interactive-bg-canvas');
+        const ctx = canvas.getContext('2d');
+        let mouseX = window.innerWidth / 2;
+        let mouseY = window.innerHeight / 2;
+
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        window.addEventListener('mousemove', (e) => {
+            mouseX = e.clientX;
+            mouseY = e.clientY;
+        });
+
+        const codeSymbols = ['{ }', '</>', 'fn()', '0101', '=>', 'dp[]', 'O(N)', 'RAM'];
+        const particles = Array.from({ length: 35 }, () => ({
+            x: Math.random() * window.innerWidth,
+            y: Math.random() * window.innerHeight,
+            symbol: codeSymbols[Math.floor(Math.random() * codeSymbols.length)],
+            speedX: (Math.random() - 0.5) * 0.6,
+            speedY: (Math.random() - 0.5) * 0.6,
+            size: Math.random() * 12 + 10,
+            opacity: Math.random() * 0.3 + 0.1
+        }));
+
+        function renderInteractiveBg() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            const gradient = ctx.createRadialGradient(mouseX, mouseY, 0, mouseX, mouseY, 350);
+            gradient.addColorStop(0, 'rgba(139, 92, 246, 0.12)');
+            gradient.addColorStop(0.5, 'rgba(6, 182, 212, 0.05)');
+            gradient.addColorStop(1, 'transparent');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            particles.forEach(p => {
+                p.x += p.speedX;
+                p.y += p.speedY;
+
+                if (p.x < 0) p.x = canvas.width;
+                if (p.x > canvas.width) p.x = 0;
+                if (p.y < 0) p.y = canvas.height;
+                if (p.y > canvas.height) p.y = 0;
+
+                ctx.font = `${p.size}px 'Fira Code', monospace`;
+                ctx.fillStyle = `rgba(139, 92, 246, ${p.opacity})`;
+                ctx.fillText(p.symbol, p.x, p.y);
+            });
+
+            requestAnimationFrame(renderInteractiveBg);
+        }
+        renderInteractiveBg();
+
+        // 2. Interactive Card 3D Tilt Effect
+        document.querySelectorAll('.tilt-card').forEach(card => {
+            card.addEventListener('mousemove', (e) => {
+                const rect = card.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                const centerX = rect.width / 2;
+                const centerY = rect.height / 2;
+                const rotateX = (y - centerY) / 12;
+                const rotateY = (centerX - x) / 12;
+
+                card.style.transform = `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale3d(1.02, 1.02, 1.02)`;
+            });
+
+            card.addEventListener('mouseleave', () => {
+                card.style.transform = `perspective(1000px) rotateX(0deg) rotateY(0deg) scale3d(1, 1, 1)`;
+            });
+        });
+
+        // 3. Toast Notifications System
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            
+            let borderCol = type === 'success' ? 'border-emerald-500/50 text-emerald-300' : 'border-purple-500/50 text-purple-300';
+            let icon = type === 'success' ? 'fa-circle-check text-emerald-400' : 'fa-circle-info text-cyan-400';
+
+            toast.className = `cyber-panel px-4 py-3 rounded-xl border ${borderCol} font-mono text-xs flex items-center space-x-3 shadow-2xl pointer-events-auto toast-animate`;
+            toast.innerHTML = `
+                <i class="fa-solid ${icon} text-base"></i>
+                <span class="font-bold text-white">${message}</span>
+            `;
+
+            container.appendChild(toast);
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transition = 'all 0.3s ease';
+                setTimeout(() => toast.remove(), 300);
+            }, 3500);
+        }
+
+        // 4. Complete Authentication & User State Engine
+        const DEFAULT_USER = {
+            handle: 'CyberKnight_X',
+            email: 'player@codearena.gg',
+            level: 24,
+            xp: 4850,
+            rank: 'Grandmaster',
+            avatar: 'https://placehold.co/100x100/8b5cf6/ffffff?text=CK',
+            class: 'Algorithmic Mage'
+        };
+
+        function getStoredUser() {
+            const data = localStorage.getItem('codearena_user');
+            return data ? JSON.parse(data) : null;
+        }
+
+        function setStoredUser(user) {
+            localStorage.setItem('codearena_user', JSON.stringify(user));
+            updateAuthUI();
+        }
+
+        function removeStoredUser() {
+            localStorage.removeItem('codearena_user');
+            updateAuthUI();
+        }
+
+        function updateAuthUI() {
+            const user = getStoredUser();
+            const navContainer = document.getElementById('nav-user-container');
+            const heroRank = document.getElementById('hero-stat-rank');
+
+            if (user) {
+                // Logged In HUD
+                if (heroRank) heroRank.textContent = user.rank;
+                navContainer.innerHTML = `
+                    <div class="hidden sm:flex items-center space-x-2 px-3 py-1.5 rounded-lg bg-slate-900 border border-amber-500/30 text-amber-400 font-mono text-xs">
+                        <i class="fa-solid fa-crown text-amber-400"></i>
+                        <span>LVL <strong class="text-white">${user.level}</strong></span>
+                        <span class="text-slate-500">|</span>
+                        <span class="text-cyan-400">${user.xp} XP</span>
+                    </div>
+
+                    <div class="flex items-center space-x-3 bg-slate-900/90 border border-purple-500/30 p-1.5 pl-3 rounded-xl">
+                        <div class="text-right hidden sm:block font-mono">
+                            <span class="block text-xs font-bold text-white leading-none">${user.handle}</span>
+                            <span class="text-[10px] text-purple-400 leading-none">${user.class}</span>
+                        </div>
+                        <img src="${user.avatar}" class="w-8 h-8 rounded-lg border border-cyan-400 object-cover" alt="User Avatar">
+                        <button onclick="handleLogout()" title="Logout Player" class="px-2.5 py-1 rounded-lg bg-rose-950/60 hover:bg-rose-900 border border-rose-500/40 text-rose-300 text-xs transition-all">
+                            <i class="fa-solid fa-power-off"></i>
+                        </button>
+                    </div>
+                `;
+            } else {
+                // Logged Out HUD
+                if (heroRank) heroRank.textContent = 'Grandmaster';
+                navContainer.innerHTML = `
+                    <button onclick="openAuthModal('login')" class="px-4 py-2 rounded-xl text-xs font-bold text-slate-200 bg-slate-900 hover:bg-slate-800 transition-all border border-cardBorder flex items-center space-x-2">
+                        <i class="fa-solid fa-right-to-bracket text-cyan-400"></i>
+                        <span>Login</span>
+                    </button>
+                    <button onclick="openAuthModal('register')" class="px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider text-black bg-gradient-to-r from-cyan-400 via-emerald-400 to-purple-400 hover:opacity-90 transition-all glow-cyan flex items-center space-x-2">
+                        <i class="fa-solid fa-user-plus"></i>
+                        <span>Register</span>
+                    </button>
+                `;
+            }
+        }
+
+        
+        // Auth Modal Controls
+        function openAuthModal(tab = 'login') {
+            document.getElementById('auth-modal').classList.remove('hidden');
+            switchAuthTab(tab);
+        }
+
+        function closeAuthModal() {
+            document.getElementById('auth-modal').classList.add('hidden');
+        }
+
+        function switchAuthTab(tab) {
+            const loginForm = document.getElementById('login-form');
+            const regForm = document.getElementById('register-form');
+            const loginBtn = document.getElementById('tab-login-btn');
+            const regBtn = document.getElementById('tab-register-btn');
+
+            if (tab === 'login') {
+                loginForm.classList.remove('hidden');
+                regForm.classList.add('hidden');
+                loginBtn.className = "text-cyan-400 font-bold border-b-2 border-cyan-400 pb-2 transition-all flex items-center space-x-2";
+                regBtn.className = "text-slate-400 hover:text-white pb-2 transition-all flex items-center space-x-2";
+            } else {
+                loginForm.classList.add('hidden');
+                regForm.classList.remove('hidden');
+                regBtn.className = "text-purple-400 font-bold border-b-2 border-purple-400 pb-2 transition-all flex items-center space-x-2";
+                loginBtn.className = "text-slate-400 hover:text-white pb-2 transition-all flex items-center space-x-2";
+            }
+        }
+
+        function autoFillDemoAuth() {
+            document.getElementById('login-email').value = 'player@codearena.gg';
+            document.getElementById('login-password').value = 'password123';
+            showToast('Demo Credentials Auto-filled!', 'info');
+        }
+
+        function handleLoginSubmit(e) {
+            e.preventDefault();
+            const btn = document.getElementById('login-submit-btn');
+            const email = document.getElementById('login-email').value;
+
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner animate-spin"></i><span>Verifying Token...</span>';
+
+            setTimeout(() => {
+                const handle = email.split('@')[0] || 'CyberPlayer';
+                const user = {
+                    ...DEFAULT_USER,
+                    handle: handle.charAt(0).toUpperCase() + handle.slice(1),
+                    email: email
+                };
+                setStoredUser(user);
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fa-solid fa-bolt"></i><span>Authenticate Arena Access</span>';
+                closeAuthModal();
+                showToast(`Welcome back, ${user.handle}! Session Granted.`, 'success');
+            }, 900);
+        }
+
+        function handleRegisterSubmit(e) {
+            e.preventDefault();
+            const btn = document.getElementById('reg-submit-btn');
+            const handle = document.getElementById('reg-handle').value;
+            const email = document.getElementById('reg-email').value;
+            const chosenClass = document.getElementById('reg-class').value;
+
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner animate-spin"></i><span>Forging Player Profile...</span>';
+
+            setTimeout(() => {
+                const newUser = {
+                    handle: handle,
+                    email: email,
+                    level: 1,
+                    xp: 150,
+                    rank: 'Bronze Recruit',
+                    avatar: `https://placehold.co/100x100/06b6d4/ffffff?text=${handle.substring(0,2).toUpperCase()}`,
+                    class: chosenClass
+                };
+                setStoredUser(newUser);
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fa-solid fa-shield-halved"></i><span>Create Player Profile</span>';
+                closeAuthModal();
+                showToast(`Profile Created! Welcome to the Arena, ${handle}.`, 'success');
+            }, 1000);
+        }
+
+        function handleLogout() {
+            removeStoredUser();
+            showToast('Logged out of CodeArena sandbox session.', 'info');
+        }
+
+        // Initialize Auth State on Page Load
+        updateAuthUI();
+
+        // 5. Smooth Scroll Helper
+        function scrollToDemo() {
+            document.getElementById('battle-arena').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        // 6. Simulated Judge Execution
+        function executeBattleSimulation() {
+            const btn = document.getElementById('submit-code-btn');
+            const consoleBox = document.getElementById('arena-output-console');
+            const statusTag = document.getElementById('verdict-status-tag');
+            const timeTag = document.getElementById('telemetry-time');
+            const memTag = document.getElementById('telemetry-mem');
+            const xpTag = document.getElementById('telemetry-xp');
+
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner animate-spin"></i><span>Jailing Sandbox...</span>';
+            consoleBox.innerHTML = '<span class="text-purple-400">// Allocating Docker container memory...</span><br><span class="text-cyan-400">// Running test suite against sample & hidden cases...</span>';
+            statusTag.className = "px-3 py-1 rounded-md text-[10px] font-bold bg-amber-500/20 text-amber-400";
+            statusTag.textContent = "EVALUATING";
+
+            setTimeout(() => {
+                consoleBox.innerHTML = `
+                    <span class="text-emerald-400 font-bold">[TEST CASE 1/3] PASSED (Time: 12ms, Mem: 12.1MB)</span><br>
+                    <span class="text-emerald-400 font-bold">[TEST CASE 2/3] PASSED (Time: 18ms, Mem: 12.4MB)</span><br>
+                    <span class="text-emerald-400 font-bold">[TEST CASE 3/3] PASSED (Time: 14ms, Mem: 12.2MB)</span><br>
+                    <span class="text-cyan-300 font-bold mt-2 block">★ QUEST CLEARED! +250 XP AWARDED ★</span>
+                `;
+                statusTag.className = "px-3 py-1 rounded-md text-[10px] font-bold bg-emerald-500/20 text-emerald-400 glow-cyan";
+                statusTag.textContent = "ACCEPTED ✓";
+                timeTag.textContent = "Exec Time: 14 ms";
+                memTag.textContent = "Memory: 12.2 MB";
+                xpTag.textContent = "XP Earned: +250 XP";
+
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fa-solid fa-gamepad"></i><span>Submit Solution</span>';
+
+                // Confetti Explosion
+                if (window.confetti) {
+                    confetti({
+                        particleCount: 80,
+                        spread: 70,
+                        origin: { y: 0.6 }
+                    });
+                }
+
+                // If user is logged in, increment their XP
+                const user = getStoredUser();
+                if (user) {
+                    user.xp += 250;
+                    setStoredUser(user);
+                    showToast('+250 XP added to player profile!', 'success');
+                }
+            }, 1300);
+        }
+
+        window.onclick = function(e) {
+            const authModal = document.getElementById('auth-modal');
+            if (e.target === authModal) closeAuthModal();
+        }
+
+        // Byte Racer Arcade Minigame Logic
+        let arcadeActive = false;
+        let arcadeScore = 0;
+        let arcadeTimer = 60;
+        let timerInterval = null;
+        let currentChallengeIndex = 0;
+
+        const arcadeChallenges = [
+            { q: "What is the correct syntax to iterate 5 times in JavaScript?", options: ["for(let i=0; i<5; i++)", "foreach(5)", "loop 5 times"], correct: 0 },
+            { q: "Which function defines a function in Python?", options: ["function myFunction()", "def my_function():", "fun my_function()"], correct: 1 },
+            { q: "What data structure operates on LIFO (Last In First Out)?", options: ["Queue", "Stack", "Array"], correct: 1 },
+            { q: "What is the time complexity of binary search on sorted array?", options: ["O(N)", "O(N log N)", "O(log N)"], correct: 2 }
+        ];
+
+        function startByteRacer() {
+            arcadeActive = true;
+            arcadeScore = 0;
+            arcadeTimer = 60;
+            currentChallengeIndex = 0;
+            document.getElementById('arcade-start-btn').classList.add('hidden');
+            document.getElementById('arcade-score').innerText = arcadeScore;
+            
+            loadNextArcadeChallenge();
+
+            timerInterval = setInterval(() => {
+                arcadeTimer--;
+                document.getElementById('arcade-timer').innerText = arcadeTimer;
+                if (arcadeTimer <= 0) {
+                    endByteRacer();
+                }
+            }, 1000);
+        }
+
+        function loadNextArcadeChallenge() {
+            if (currentChallengeIndex >= arcadeChallenges.length) {
+                currentChallengeIndex = 0; // loop questions
+            }
+            const chal = arcadeChallenges[currentChallengeIndex];
+            document.getElementById('arcade-question').innerText = chal.q;
+            
+            const optionsBox = document.getElementById('arcade-options');
+            optionsBox.innerHTML = "";
+            chal.options.forEach((opt, idx) => {
+                const btn = document.createElement('button');
+                btn.className = "w-full text-left px-4 py-2.5 rounded-xl bg-cardBg hover:bg-cyan-500/20 border border-cardBorder text-xs text-gray-200 transition";
+                btn.innerText = opt;
+                btn.onclick = () => checkArcadeAnswer(idx, chal.correct);
+                optionsBox.appendChild(btn);
+            });
+        }
+
+        function checkArcadeAnswer(selected, correct) {
+            if (!arcadeActive) return;
+            if (selected === correct) {
+                arcadeScore += 100;
+                arcadeTimer += 3; // time bonus
+                document.getElementById('arcade-score').innerText = arcadeScore;
+                showToast("Correct! +100 Score & +3s Nitro", "success");
+            } else {
+                arcadeScore = Math.max(0, arcadeScore - 50);
+                document.getElementById('arcade-score').innerText = arcadeScore;
+                showToast("Incorrect syntax! -50 Score", "info");
+            }
+            currentChallengeIndex++;
+            loadNextArcadeChallenge();
+        }
+
+        function endByteRacer() {
+            arcadeActive = false;
+            clearInterval(timerInterval);
+            document.getElementById('arcade-question').innerText = `Race Finished! Final Score: ${arcadeScore} XP`;
+            document.getElementById('arcade-options').innerHTML = `<div class="text-center text-emerald-400 font-bold text-sm py-4">Great run! Score synced with your profile.</div>`;
+            document.getElementById('arcade-start-btn').innerText = "Play Again";
+            document.getElementById('arcade-start-btn').classList.remove('hidden');
+            if (arcadeScore > 0) {
+                showToast(`Byte Racer completed! +${arcadeScore} XP added.`, 'success');
+            }
+        }
+    </script>
+</body>
+</html>
