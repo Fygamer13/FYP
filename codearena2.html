@@ -1,0 +1,1767 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CodeArena | Gamified Adaptive Coding Arena</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        darkBg: '#090d16',
+                        cardBg: '#111827',
+                        cardBorder: '#1f2937',
+                        cyberCyan: '#06b6d4',
+                        neonPurple: '#8b5cf6',
+                        neonEmerald: '#10b981',
+                        neonGold: '#f59e0b',
+                        neonRose: '#f43f5e'
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['Fira Code', 'monospace']
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Google Fonts: Inter & Fira Code -->
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Canvas Confetti CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #090d16;
+            color: #f3f4f6;
+            overflow-x: hidden;
+        }
+
+        #interactive-bg-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        .cyber-panel {
+            background: rgba(17, 24, 39, 0.75);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(139, 92, 246, 0.15);
+            transition: transform 0.2s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .cyber-panel:hover {
+            border-color: rgba(6, 182, 212, 0.4);
+            box-shadow: 0 0 25px -5px rgba(139, 92, 246, 0.25);
+        }
+
+        .glow-purple { box-shadow: 0 0 30px -5px rgba(139, 92, 246, 0.4); }
+        .glow-cyan { box-shadow: 0 0 30px -5px rgba(6, 182, 212, 0.4); }
+        .glow-gold { box-shadow: 0 0 30px -5px rgba(245, 158, 11, 0.4); }
+        .glow-rose { box-shadow: 0 0 30px -5px rgba(244, 63, 94, 0.4); }
+
+        .cyber-grid {
+            background-size: 40px 40px;
+            background-image: 
+                linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+        }
+
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #090d16; }
+        ::-webkit-scrollbar-thumb { background: #1f2937; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #8b5cf6; }
+
+        @keyframes pulseGlow {
+            0%, 100% { filter: drop-shadow(0 0 10px rgba(6, 182, 212, 0.6)); }
+            50% { filter: drop-shadow(0 0 20px rgba(139, 92, 246, 0.8)); }
+        }
+        .pulse-glow { animation: pulseGlow 3s infinite ease-in-out; }
+
+        @keyframes bossShake {
+            0%, 100% { transform: translateX(0); }
+            20%, 60% { transform: translateX(-6px); }
+            40%, 80% { transform: translateX(6px); }
+        }
+        .boss-hit-anim { animation: bossShake 0.4s ease-in-out; }
+
+        .tilt-card {
+            transform-style: preserve-3d;
+            will-change: transform;
+        }
+
+        @keyframes slideInRight {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        .toast-animate { animation: slideInRight 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+
+        .nav-link.active {
+            color: #06b6d4;
+            border-bottom: 2px solid #06b6d4;
+        }
+        
+        .page-view {
+            display: none;
+        }
+        .page-view.active {
+            display: block;
+        }
+    </style>
+</head>
+<body class="bg-darkBg text-slate-100 antialiased selection:bg-neonPurple selection:text-white cyber-grid relative">
+
+    <!-- Interactive Canvas Background -->
+    <canvas id="interactive-bg-canvas"></canvas>
+
+    <!-- Toast Notification Container -->
+    <div id="toast-container" class="fixed top-20 sm:top-24 right-3 sm:right-5 z-50 flex flex-col space-y-3 pointer-events-none max-w-xs sm:max-w-md w-full px-2 sm:px-0"></div>
+
+    <!-- Navigation Bar -->
+    <nav class="sticky top-0 z-40 cyber-panel border-b border-cardBorder bg-darkBg/90">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
+            <!-- Logo & Brand -->
+            <div class="flex items-center space-x-3 cursor-pointer" onclick="navigateTo('home')">
+                <div class="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-gradient-to-tr from-neonPurple via-cyberCyan to-neonEmerald flex items-center justify-center glow-purple pulse-glow">
+                    <i class="fa-solid fa-gamepad text-black font-extrabold text-lg sm:text-xl"></i>
+                </div>
+                <div>
+                    <span class="text-xl sm:text-2xl font-black tracking-wider bg-gradient-to-r from-cyan-400 via-purple-400 to-emerald-400 bg-clip-text text-transparent">CodeArena</span>
+                    <span class="block text-[9px] sm:text-[10px] uppercase tracking-widest text-slate-400 font-bold">Gamified Adaptive Coding</span>
+                </div>
+            </div>
+
+            <!-- Desktop Nav Links -->
+            <div class="hidden lg:flex items-center space-x-6 text-sm font-semibold text-slate-300">
+                <button onclick="navigateTo('home')" class="nav-link py-2 hover:text-cyberCyan transition-colors flex items-center space-x-1" data-page="home">
+                    <i class="fa-solid fa-house text-slate-400"></i><span>Home</span>
+                </button>
+                <button onclick="navigateTo('quests')" class="nav-link py-2 hover:text-cyberCyan transition-colors flex items-center space-x-1" data-page="quests">
+                    <i class="fa-solid fa-map text-purple-400"></i><span>Quests & Bosses</span>
+                </button>
+                <button onclick="navigateTo('skilltree')" class="nav-link py-2 hover:text-cyberCyan transition-colors flex items-center space-x-1" data-page="skilltree">
+                    <i class="fa-solid fa-sitemap text-cyan-400"></i><span>Skill Trees</span>
+                </button>
+                <button onclick="navigateTo('arena')" class="nav-link py-2 hover:text-cyberCyan transition-colors flex items-center space-x-1" data-page="arena">
+                    <i class="fa-solid fa-terminal text-emerald-400"></i><span>Live Judge</span>
+                </button>
+                <button onclick="navigateTo('arcade')" class="nav-link py-2 hover:text-cyberCyan transition-colors flex items-center space-x-1" data-page="arcade">
+                    <i class="fa-solid fa-bolt text-amber-400"></i><span>Byte Racer</span>
+                </button>
+                <button onclick="navigateTo('leaderboard')" class="nav-link py-2 hover:text-cyberCyan transition-colors flex items-center space-x-1" data-page="leaderboard">
+                    <i class="fa-solid fa-trophy text-yellow-400"></i><span>Leaderboard</span>
+                </button>
+                <button onclick="navigateTo('techstack')" class="nav-link py-2 hover:text-cyberCyan transition-colors flex items-center space-x-1" data-page="techstack">
+                    <i class="fa-solid fa-layer-group text-sky-400"></i><span>Engine</span>
+                </button>
+                <button onclick="navigateTo('security')" class="nav-link py-2 hover:text-cyberCyan transition-colors flex items-center space-x-1" data-page="security">
+                    <i class="fa-solid fa-shield-halved text-rose-400"></i><span>Shield</span>
+                </button>
+            </div>
+
+            <!-- User HUD & Mobile Hamburger Controls -->
+            <div class="flex items-center space-x-2 sm:space-x-3">
+                <div id="nav-user-container" class="flex items-center space-x-2 sm:space-x-3">
+                    <!-- Injected dynamically via JS -->
+                </div>
+                <!-- Mobile Drawer Toggle Button -->
+                <button onclick="toggleMobileMenu()" class="lg:hidden p-2.5 rounded-xl bg-slate-900 border border-cardBorder text-slate-300 hover:text-white hover:border-cyan-400 transition focus:outline-none">
+                    <i class="fa-solid fa-bars text-lg" id="mobile-menu-icon"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Full Mobile Slide-down Menu -->
+        <div id="mobile-menu-drawer" class="hidden lg:hidden bg-slate-950/95 border-b border-cardBorder px-4 py-4 space-y-2 backdrop-blur-xl">
+            <div class="grid grid-cols-2 gap-2 text-xs font-mono">
+                <button onclick="navigateTo('home'); toggleMobileMenu()" class="p-3 rounded-xl bg-slate-900 border border-slate-800 text-left hover:bg-slate-800 text-slate-200 flex items-center space-x-2">
+                    <i class="fa-solid fa-house text-cyan-400"></i><span>Home</span>
+                </button>
+                <button onclick="navigateTo('quests'); toggleMobileMenu()" class="p-3 rounded-xl bg-slate-900 border border-slate-800 text-left hover:bg-slate-800 text-slate-200 flex items-center space-x-2">
+                    <i class="fa-solid fa-map text-purple-400"></i><span>Quests & Bosses</span>
+                </button>
+                <button onclick="navigateTo('skilltree'); toggleMobileMenu()" class="p-3 rounded-xl bg-slate-900 border border-slate-800 text-left hover:bg-slate-800 text-slate-200 flex items-center space-x-2">
+                    <i class="fa-solid fa-sitemap text-cyan-400"></i><span>Skill Trees</span>
+                </button>
+                <button onclick="navigateTo('arena'); toggleMobileMenu()" class="p-3 rounded-xl bg-slate-900 border border-slate-800 text-left hover:bg-slate-800 text-slate-200 flex items-center space-x-2">
+                    <i class="fa-solid fa-terminal text-emerald-400"></i><span>Live Judge</span>
+                </button>
+                <button onclick="navigateTo('arcade'); toggleMobileMenu()" class="p-3 rounded-xl bg-slate-900 border border-slate-800 text-left hover:bg-slate-800 text-slate-200 flex items-center space-x-2">
+                    <i class="fa-solid fa-bolt text-amber-400"></i><span>Byte Racer</span>
+                </button>
+                <button onclick="navigateTo('leaderboard'); toggleMobileMenu()" class="p-3 rounded-xl bg-slate-900 border border-slate-800 text-left hover:bg-slate-800 text-slate-200 flex items-center space-x-2">
+                    <i class="fa-solid fa-trophy text-yellow-400"></i><span>Leaderboard</span>
+                </button>
+                <button onclick="navigateTo('techstack'); toggleMobileMenu()" class="p-3 rounded-xl bg-slate-900 border border-slate-800 text-left hover:bg-slate-800 text-slate-200 flex items-center space-x-2">
+                    <i class="fa-solid fa-layer-group text-sky-400"></i><span>Tech Engine</span>
+                </button>
+                <button onclick="navigateTo('security'); toggleMobileMenu()" class="p-3 rounded-xl bg-slate-900 border border-slate-800 text-left hover:bg-slate-800 text-slate-200 flex items-center space-x-2">
+                    <i class="fa-solid fa-shield-halved text-rose-400"></i><span>Security Shield</span>
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- MAIN PAGE VIEWS ROUTER CONTAINER -->
+    <main class="min-h-screen relative z-10">
+
+        <!-- PAGE 1: HOME -->
+        <div id="page-home" class="page-view active">
+            <!-- Hero Section -->
+            <header class="relative pt-10 sm:pt-16 pb-16 sm:pb-24 overflow-hidden">
+                <div class="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[320px] sm:w-[700px] h-[250px] sm:h-[400px] bg-purple-600/15 rounded-full blur-[100px] sm:blur-[150px] pointer-events-none"></div>
+                <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative text-center">
+                    <div class="inline-flex items-center space-x-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-full bg-slate-900/80 border border-purple-500/40 text-purple-300 font-mono text-[10px] sm:text-xs mb-6 sm:mb-8 glow-purple">
+                        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+                        <i class="fa-solid fa-gamepad text-cyan-400"></i>
+                        <span class="font-bold tracking-widest uppercase">SEASON 1: ADAPTIVE REALM ONLINE</span>
+                    </div>
+                    <h1 class="text-3xl sm:text-6xl lg:text-7xl font-black tracking-tight text-white max-w-5xl mx-auto leading-[1.15] mb-4 sm:mb-6">
+                        Level Up Your Code. <br>
+                        <span class="bg-gradient-to-r from-cyan-400 via-purple-400 to-emerald-400 bg-clip-text text-transparent">Master the Game.</span>
+                    </h1>
+                    <p class="text-sm sm:text-xl text-slate-300 max-w-3xl mx-auto mb-8 sm:mb-10 leading-relaxed font-light">
+                        Step into an adaptive RPG coding arena where algorithms become quests, test cases become dynamic boss fights, and real-time execution builds your global rank.
+                    </p>
+                    <div class="flex flex-col sm:flex-row items-center justify-center space-y-3 sm:space-y-0 sm:space-x-5 mb-12 sm:mb-16 w-full max-w-md sm:max-w-none mx-auto">
+                        <button onclick="navigateTo('quests')" class="w-full sm:w-auto px-8 py-4 rounded-xl text-sm sm:text-base font-black uppercase tracking-wider text-black bg-gradient-to-r from-cyan-400 via-emerald-400 to-purple-400 hover:opacity-90 transition-all glow-purple shadow-xl flex items-center justify-center space-x-3">
+                            <i class="fa-solid fa-dragon text-black text-lg"></i>
+                            <span>Battle Boss Quests</span>
+                        </button>
+                        <button onclick="navigateTo('arcade')" class="w-full sm:w-auto px-8 py-4 rounded-xl text-sm sm:text-base font-bold text-slate-200 bg-cardBg hover:bg-slate-800 transition-all border border-cardBorder flex items-center justify-center space-x-3">
+                            <i class="fa-solid fa-bolt text-amber-400"></i>
+                            <span>150+ Byte Racer Speedrun</span>
+                        </button>
+                    </div>
+
+                    <!-- Responsive Stats Cards -->
+                    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 max-w-5xl mx-auto">
+                        <div class="cyber-panel p-4 sm:p-5 rounded-2xl text-left">
+                            <div class="flex items-center justify-between mb-2">
+                                <span class="text-[10px] sm:text-xs font-mono uppercase text-slate-400">CURRENT TIER</span>
+                                <i class="fa-solid fa-shield-cat text-cyan-400 text-base sm:text-lg"></i>
+                            </div>
+                            <div class="text-lg sm:text-xl font-black text-white" id="hero-stat-rank">Grandmaster</div>
+                            <div class="text-[10px] sm:text-xs text-cyan-400 font-mono mt-1">Top 2% Ranked</div>
+                        </div>
+                        <div class="cyber-panel p-4 sm:p-5 rounded-2xl text-left">
+                            <div class="flex items-center justify-between mb-2">
+                                <span class="text-[10px] sm:text-xs font-mono uppercase text-slate-400">AI ADAPTIVE ENGINE</span>
+                                <i class="fa-solid fa-brain text-purple-400 text-base sm:text-lg"></i>
+                            </div>
+                            <div class="text-lg sm:text-xl font-black text-white">Dynamic Flow</div>
+                            <div class="text-[10px] sm:text-xs text-purple-400 font-mono mt-1">Weakness Targeting</div>
+                        </div>
+                        <div class="cyber-panel p-4 sm:p-5 rounded-2xl text-left">
+                            <div class="flex items-center justify-between mb-2">
+                                <span class="text-[10px] sm:text-xs font-mono uppercase text-slate-400">SANDBOX JUDGE</span>
+                                <i class="fa-solid fa-microchip text-emerald-400 text-base sm:text-lg"></i>
+                            </div>
+                            <div class="text-lg sm:text-xl font-black text-white">&lt; 50ms Verdict</div>
+                            <div class="text-[10px] sm:text-xs text-emerald-400 font-mono mt-1">Zero Breach Sandbox</div>
+                        </div>
+                        <div class="cyber-panel p-4 sm:p-5 rounded-2xl text-left">
+                            <div class="flex items-center justify-between mb-2">
+                                <span class="text-[10px] sm:text-xs font-mono uppercase text-slate-400">QUESTION BANK</span>
+                                <i class="fa-solid fa-list-check text-amber-400 text-base sm:text-lg"></i>
+                            </div>
+                            <div class="text-lg sm:text-xl font-black text-white">150+ Questions</div>
+                            <div class="text-[10px] sm:text-xs text-amber-400 font-mono mt-1">Arcade Speedruns</div>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Feature Showcase Highlights -->
+            <section class="py-12 sm:py-16 border-t border-cardBorder max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="text-center mb-8 sm:mb-12">
+                    <h2 class="text-2xl sm:text-4xl font-black text-white">Choose Your Combat Mode</h2>
+                    <p class="text-slate-400 text-xs sm:text-sm mt-2">Explore the core gaming arenas built for algorithm masters and code speed demons.</p>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8">
+                    <div class="cyber-panel p-6 sm:p-8 rounded-3xl cursor-pointer hover:border-cyan-400 transition" onclick="navigateTo('quests')">
+                        <i class="fa-solid fa-dragon text-3xl sm:text-4xl text-cyan-400 mb-4"></i>
+                        <h3 class="text-lg sm:text-xl font-bold text-white mb-2">Dynamic Boss Quests</h3>
+                        <p class="text-slate-400 text-xs sm:text-sm mb-4">Solve progressive challenges mapped as interactive RPG boss fights with adaptive phases, mechanics, dynamic HP bars, and loot.</p>
+                        <span class="text-xs font-mono text-cyan-400">Inspect Dungeons &rarr;</span>
+                    </div>
+                    <div class="cyber-panel p-6 sm:p-8 rounded-3xl cursor-pointer hover:border-amber-400 transition" onclick="navigateTo('arcade')">
+                        <i class="fa-solid fa-gamepad text-3xl sm:text-4xl text-amber-400 mb-4"></i>
+                        <h3 class="text-lg sm:text-xl font-bold text-white mb-2">Byte Racer Speedruns</h3>
+                        <p class="text-slate-400 text-xs sm:text-sm mb-4">Answer trivia and syntax speedrun questions across 5 categories with nitro timers and combo multipliers.</p>
+                        <span class="text-xs font-mono text-amber-400">Launch 150+ Speedruns &rarr;</span>
+                    </div>
+                    <div class="cyber-panel p-6 sm:p-8 rounded-3xl cursor-pointer hover:border-purple-400 transition" onclick="navigateTo('skilltree')">
+                        <i class="fa-solid fa-sitemap text-3xl sm:text-4xl text-purple-400 mb-4"></i>
+                        <h3 class="text-lg sm:text-xl font-bold text-white mb-2">Skill Trees & Badges</h3>
+                        <p class="text-slate-400 text-xs sm:text-sm mb-4">Unlock algorithmic branches in Data Structures, DP, and System Design while earning collectible badges.</p>
+                        <span class="text-xs font-mono text-purple-400">Inspect Skill Nodes &rarr;</span>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <!-- PAGE 2: QUESTS & DUNGEONS -->
+        <div id="page-quests" class="page-view">
+            <section class="py-10 sm:py-16 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="text-center max-w-3xl mx-auto mb-8 sm:mb-10">
+                    <span class="text-[10px] sm:text-xs font-bold uppercase tracking-widest text-cyan-400 bg-cyan-950/60 border border-cyan-500/30 px-3 py-1 rounded-full">Algorithmic RPG Battles</span>
+                    <h2 class="text-3xl sm:text-5xl font-black text-white mt-3 sm:mt-4 mb-2 sm:mb-3">Quests & Dynamic Boss Fights</h2>
+                    <p class="text-slate-400 text-xs sm:text-sm">Select your weak subjects below to recalibrate quest difficulties and earn targeted +25% XP bonuses!</p>
+                </div>
+
+                <!-- WEAK TOPIC SELECTION INTERFACE PANEL -->
+                <div class="cyber-panel p-5 sm:p-7 rounded-3xl border border-rose-500/30 mb-10 max-w-5xl mx-auto glow-rose">
+                    <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between border-b border-cardBorder pb-4 mb-4 gap-3">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-10 h-10 rounded-xl bg-rose-500/20 border border-rose-500/40 flex items-center justify-center text-rose-400 text-lg">
+                                <i class="fa-solid fa-crosshairs animate-pulse"></i>
+                            </div>
+                            <div>
+                                <h3 class="text-lg font-black text-white flex items-center space-x-2">
+                                    <span>AI Weakness Targeting Matrix</span>
+                                    <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-rose-950 text-rose-400 border border-rose-500/30 uppercase">ADAPTIVE MODE</span>
+                                </h3>
+                                <p class="text-xs text-slate-400">Select topics you find challenging. The arena will spawn bosses to strengthen these areas.</p>
+                            </div>
+                        </div>
+                        <div class="text-right font-mono text-xs">
+                            <span class="text-amber-400 font-bold block">+25% XP BONUS ACTIVE</span>
+                            <span class="text-slate-500 text-[10px]" id="selected-weakness-count">0 weak topics targeted</span>
+                        </div>
+                    </div>
+
+                    <!-- Weak Topic Checkboxes Grid -->
+                    <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2.5 font-mono text-xs" id="weakness-topics-box">
+                        <!-- Rendered dynamically -->
+                    </div>
+                </div>
+
+                <!-- Quest Filters -->
+                <div class="flex flex-wrap items-center justify-center gap-2 sm:gap-3 mb-8 sm:mb-10 font-mono text-xs">
+                    <button onclick="filterQuests('all')" class="quest-filter-btn px-3 sm:px-4 py-2 rounded-xl bg-cyan-500/20 text-cyan-300 border border-cyan-500/40">All Dungeons</button>
+                    <button onclick="filterQuests('Novice')" class="quest-filter-btn px-3 sm:px-4 py-2 rounded-xl bg-slate-900 text-slate-400 border border-cardBorder hover:text-white">Tier 1: Novice</button>
+                    <button onclick="filterQuests('Elite')" class="quest-filter-btn px-3 sm:px-4 py-2 rounded-xl bg-slate-900 text-slate-400 border border-cardBorder hover:text-white">Tier 2: Elite Raid</button>
+                    <button onclick="filterQuests('Mythic')" class="quest-filter-btn px-3 sm:px-4 py-2 rounded-xl bg-slate-900 text-slate-400 border border-cardBorder hover:text-white">Tier 3: Mythic Boss</button>
+                </div>
+
+                <!-- Quests Grid -->
+                <div id="quests-grid-container" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
+                    <!-- Dynamic rendering in JS -->
+                </div>
+            </section>
+        </div>
+
+        <!-- PAGE 3: SKILL TREE & BADGES -->
+        <div id="page-skilltree" class="page-view">
+            <section class="py-10 sm:py-16 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="text-center max-w-3xl mx-auto mb-8 sm:mb-12">
+                    <span class="text-[10px] sm:text-xs font-bold uppercase tracking-widest text-purple-400 bg-purple-950/60 border border-purple-500/30 px-3 py-1 rounded-full">Adaptive Skill Tree</span>
+                    <h2 class="text-3xl sm:text-5xl font-black text-white mt-3 sm:mt-4 mb-2 sm:mb-3">Skill Trees & Badge Hall</h2>
+                    <p class="text-slate-400 text-xs sm:text-sm">Track your progress across data structure mastery, algorithmic efficiency, and platform achievements.</p>
+                </div>
+
+                <!-- Skill Tree Interactive Node Map -->
+                <div class="cyber-panel p-6 sm:p-12 rounded-3xl border-purple-500/30 mb-8 sm:mb-12">
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-8">
+                        <!-- Branch 1: Data Structures -->
+                        <div class="space-y-4 sm:space-y-6">
+                            <div class="flex items-center space-x-3 text-cyan-400 font-black font-mono text-sm sm:text-base">
+                                <i class="fa-solid fa-code-branch text-lg sm:text-xl"></i>
+                                <span>DATA STRUCTURES TREE</span>
+                            </div>
+                            <div class="p-4 rounded-xl bg-slate-900 border border-cyan-500/40 cursor-pointer hover:bg-cyan-950/30 transition-all">
+                                <div class="flex justify-between text-xs font-mono text-cyan-400 mb-1"><span>NODE 01</span><span class="text-emerald-400">UNLOCKED ✓</span></div>
+                                <h4 class="font-bold text-white text-sm sm:text-base">Arrays & Strings Master</h4>
+                                <div class="text-xs text-slate-400 mt-1">100% Mastery • +5% Crit Logic Speed</div>
+                            </div>
+                            <div class="p-4 rounded-xl bg-slate-900 border border-purple-500/40 cursor-pointer hover:bg-purple-950/30 transition-all">
+                                <div class="flex justify-between text-xs font-mono text-purple-400 mb-1"><span>NODE 02</span><span class="text-amber-400">IN PROGRESS (80%)</span></div>
+                                <h4 class="font-bold text-white text-sm sm:text-base">Binary Trees & Heaps</h4>
+                                <div class="text-xs text-slate-400 mt-1">8/10 Quests Cleared</div>
+                            </div>
+                            <div class="p-4 rounded-xl bg-slate-900/40 border border-slate-800 opacity-60">
+                                <div class="flex justify-between text-xs font-mono text-slate-500 mb-1"><span>NODE 03</span><span>LOCKED</span></div>
+                                <h4 class="font-bold text-slate-400 text-sm sm:text-base">Segment Trees & Tries</h4>
+                                <div class="text-xs text-slate-600 mt-1">Requires Level 30</div>
+                            </div>
+                        </div>
+
+                        <!-- Branch 2: Algorithmic Logic -->
+                        <div class="space-y-4 sm:space-y-6">
+                            <div class="flex items-center space-x-3 text-purple-400 font-black font-mono text-sm sm:text-base">
+                                <i class="fa-solid fa-brain text-lg sm:text-xl"></i>
+                                <span>ALGORITHMIC LOGIC TREE</span>
+                            </div>
+                            <div class="p-4 rounded-xl bg-slate-900 border border-emerald-500/40 cursor-pointer hover:bg-emerald-950/30 transition-all">
+                                <div class="flex justify-between text-xs font-mono text-emerald-400 mb-1"><span>NODE 01</span><span class="text-emerald-400">UNLOCKED ✓</span></div>
+                                <h4 class="font-bold text-white text-sm sm:text-base">Sorting & Binary Search</h4>
+                                <div class="text-xs text-slate-400 mt-1">100% Mastery</div>
+                            </div>
+                            <div class="p-4 rounded-xl bg-slate-900 border border-red-500/40 cursor-pointer hover:bg-red-950/30 transition-all">
+                                <div class="flex justify-between text-xs font-mono text-red-400 mb-1"><span>NODE 02</span><span class="text-red-400">WEAK SPOT DETECTED</span></div>
+                                <h4 class="font-bold text-white text-sm sm:text-base">Dynamic Programming</h4>
+                                <div class="text-xs text-slate-400 mt-1">AI Recommends: 3 Practice Quests</div>
+                            </div>
+                            <div class="p-4 rounded-xl bg-slate-900/40 border border-slate-800 opacity-60">
+                                <div class="flex justify-between text-xs font-mono text-slate-500 mb-1"><span>NODE 03</span><span>LOCKED</span></div>
+                                <h4 class="font-bold text-slate-400 text-sm sm:text-base">Graph Flow & Matching</h4>
+                                <div class="text-xs text-slate-600 mt-1">Requires Node 02 Clearance</div>
+                            </div>
+                        </div>
+
+                        <!-- Branch 3: System Design & Architecture -->
+                        <div class="space-y-4 sm:space-y-6">
+                            <div class="flex items-center space-x-3 text-emerald-400 font-black font-mono text-sm sm:text-base">
+                                <i class="fa-solid fa-cubes text-lg sm:text-xl"></i>
+                                <span>SYSTEM ARCHITECTURE TREE</span>
+                            </div>
+                            <div class="p-4 rounded-xl bg-slate-900 border border-cyan-500/40 cursor-pointer hover:bg-cyan-950/30 transition-all">
+                                <div class="flex justify-between text-xs font-mono text-cyan-400 mb-1"><span>NODE 01</span><span class="text-emerald-400">UNLOCKED ✓</span></div>
+                                <h4 class="font-bold text-white text-sm sm:text-base">Concurrency & Threading</h4>
+                                <div class="text-xs text-slate-400 mt-1">Race Condition Defense</div>
+                            </div>
+                            <div class="p-4 rounded-xl bg-slate-900/40 border border-slate-800 opacity-60">
+                                <div class="flex justify-between text-xs font-mono text-slate-500 mb-1"><span>NODE 02</span><span>LOCKED</span></div>
+                                <h4 class="font-bold text-slate-400 text-sm sm:text-base">Distributed Caching</h4>
+                                <div class="text-xs text-slate-600 mt-1">Redis & LRU Eviction</div>
+                            </div>
+                            <div class="p-4 rounded-xl bg-slate-900/40 border border-slate-800 opacity-60">
+                                <div class="flex justify-between text-xs font-mono text-slate-500 mb-1"><span>NODE 03</span><span>LOCKED</span></div>
+                                <h4 class="font-bold text-slate-400 text-sm sm:text-base">Sharding & Replication</h4>
+                                <div class="text-xs text-slate-600 mt-1">High Availability Design</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Badges Showcase -->
+                <div class="cyber-panel p-6 sm:p-8 rounded-3xl">
+                    <h3 class="text-lg sm:text-xl font-black text-white mb-6 flex items-center space-x-3 font-mono">
+                        <i class="fa-solid fa-award text-amber-400"></i>
+                        <span>PLAYER ACHIEVEMENT HALL</span>
+                    </h3>
+                    <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3 sm:gap-4">
+                        <div class="p-4 bg-slate-900 rounded-xl border border-amber-500/30 text-center">
+                            <i class="fa-solid fa-bolt text-amber-400 text-2xl sm:text-3xl mb-2"></i>
+                            <div class="text-xs font-bold text-white">Speed Demon</div>
+                            <div class="text-[10px] text-slate-400 mt-1">&lt; 10ms execution</div>
+                        </div>
+                        <div class="p-4 bg-slate-900 rounded-xl border border-cyan-500/30 text-center">
+                            <i class="fa-solid fa-fire-flame-curved text-cyan-400 text-2xl sm:text-3xl mb-2"></i>
+                            <div class="text-xs font-bold text-white">7-Day Fire</div>
+                            <div class="text-[10px] text-slate-400 mt-1">Streak Champion</div>
+                        </div>
+                        <div class="p-4 bg-slate-900 rounded-xl border border-purple-500/30 text-center">
+                            <i class="fa-solid fa-chess-knight text-purple-400 text-2xl sm:text-3xl mb-2"></i>
+                            <div class="text-xs font-bold text-white">Overlord Slayer</div>
+                            <div class="text-[10px] text-slate-400 mt-1">DP Boss Defeated</div>
+                        </div>
+                        <div class="p-4 bg-slate-900 rounded-xl border border-emerald-500/30 text-center">
+                            <i class="fa-solid fa-brain text-emerald-400 text-2xl sm:text-3xl mb-2"></i>
+                            <div class="text-xs font-bold text-white">Zero Error</div>
+                            <div class="text-[10px] text-slate-400 mt-1">10 Submissions Passed</div>
+                        </div>
+                        <div class="p-4 bg-slate-900 rounded-xl border border-rose-500/30 text-center">
+                            <i class="fa-solid fa-gauge-high text-rose-400 text-2xl sm:text-3xl mb-2"></i>
+                            <div class="text-xs font-bold text-white">Nitro Racer</div>
+                            <div class="text-[10px] text-slate-400 mt-1">Byte Racer Score > 1500</div>
+                        </div>
+                        <div class="p-4 bg-slate-900 rounded-xl border border-slate-700 text-center opacity-50">
+                            <i class="fa-solid fa-lock text-slate-500 text-2xl sm:text-3xl mb-2"></i>
+                            <div class="text-xs font-bold text-slate-400">Grandmaster</div>
+                            <div class="text-[10px] text-slate-500 mt-1">Reach Top 100 Rank</div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <!-- PAGE 4: BATTLE ARENA & LIVE JUDGE WITH LINE & TEST CASE DIAGNOSTICS -->
+        <div id="page-arena" class="page-view">
+            <section class="py-10 sm:py-16 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="text-center max-w-3xl mx-auto mb-8 sm:mb-12">
+                    <span class="text-[10px] sm:text-xs font-bold uppercase tracking-widest text-emerald-400 bg-emerald-950/60 border border-emerald-500/30 px-3 py-1 rounded-full">Interactive Battle Arena</span>
+                    <h2 class="text-3xl sm:text-5xl font-black text-white mt-3 sm:mt-4 mb-2 sm:mb-3">Live Sandboxed Battle Judge</h2>
+                    <p class="text-slate-400 text-xs sm:text-sm">Execute algorithms against isolated container test suites. Each test case logs line coverage, code line targets, and verification purpose!</p>
+                </div>
+
+                <div class="cyber-panel rounded-3xl border-purple-500/30 overflow-hidden max-w-5xl mx-auto shadow-2xl">
+                    <!-- Boss Arena Top Bar HUD -->
+                    <div id="arena-boss-hud" class="bg-slate-950 p-4 sm:p-6 border-b border-cardBorder relative">
+                        <!-- Dynamic active boss content will render here -->
+                    </div>
+
+                    <!-- Code Editor Control Header -->
+                    <div class="bg-slate-900/90 px-4 sm:px-6 py-3 border-b border-cardBorder flex flex-wrap items-center justify-between gap-3">
+                        <div class="flex items-center space-x-2 font-mono text-xs text-slate-300">
+                            <i class="fa-solid fa-code text-cyan-400"></i>
+                            <span>Editor Console (Line Numbers Active)</span>
+                        </div>
+
+                        <div class="flex items-center space-x-3 w-full sm:w-auto justify-end">
+                            <select id="demo-lang" onchange="switchEditorLanguage()" class="bg-slate-950 text-cyan-400 text-xs font-mono px-3 py-2 rounded-xl border border-cardBorder outline-none focus:border-cyan-400">
+                                <option value="python">Python 3.10</option>
+                                <option value="cpp">C++ 20 (GCC)</option>
+                                <option value="java">Java 17 (OpenJDK)</option>
+                                <option value="js">JavaScript (Node v18)</option>
+                            </select>
+                            <button onclick="executeBattleSimulation()" id="submit-code-btn" class="px-5 sm:px-6 py-2 rounded-xl text-xs font-black uppercase tracking-wider text-black bg-gradient-to-r from-cyan-400 via-emerald-400 to-purple-400 hover:opacity-90 transition-all glow-cyan flex items-center space-x-2">
+                                <i class="fa-solid fa-wand-magic-sparkles"></i>
+                                <span>Cast Attack</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Code Editor & Console Output split grid -->
+                    <div class="grid grid-cols-1 lg:grid-cols-2">
+                        <div class="p-4 sm:p-6 bg-slate-950 border-b lg:border-b-0 lg:border-r border-cardBorder font-mono text-xs sm:text-sm relative">
+                            <div class="text-slate-500 text-xs mb-3 flex justify-between items-center">
+                                <span>// CODE EDITOR CANVAS</span>
+                                <span class="text-slate-600">UTF-8</span>
+                            </div>
+                            <div class="relative flex">
+                                <!-- Line Number Margin -->
+                                <div class="select-none text-slate-600 pr-3 text-right font-mono text-xs leading-relaxed space-y-0.5 border-r border-slate-800 mr-2 py-4">
+                                    <div>1</div><div>2</div><div>3</div><div>4</div><div>5</div><div>6</div><div>7</div><div>8</div>
+                                </div>
+                                <textarea id="arena-code-input" rows="10" class="w-full bg-slate-900 text-slate-200 p-4 rounded-xl border border-cardBorder outline-none focus:border-purple-500 resize-none font-mono text-xs sm:text-sm leading-relaxed">def solveTwoSum(nums, target):
+    # O(N) Hashmap solution
+    seen = {}
+    for idx, val in enumerate(nums):
+        complement = target - val
+        if complement in seen:
+            return [seen[complement], idx]
+        seen[val] = idx
+    return []</textarea>
+                            </div>
+                        </div>
+
+                        <!-- LIVE JUDGE TELEMETRY & DIAGNOSTICS LOG -->
+                        <div class="p-4 sm:p-6 bg-darkBg flex flex-col justify-between font-mono text-xs">
+                            <div>
+                                <div class="flex items-center justify-between mb-3">
+                                    <span class="text-slate-400 uppercase tracking-wider text-[11px] font-bold flex items-center space-x-2">
+                                        <i class="fa-solid fa-microchip text-cyan-400"></i>
+                                        <span>TEST CASE DIAGNOSTICS & TRACE</span>
+                                    </span>
+                                    <span id="verdict-status-tag" class="px-3 py-1 rounded-md text-[10px] font-bold bg-slate-800 text-slate-400">READY</span>
+                                </div>
+                                <div id="arena-output-console" class="bg-slate-950 p-4 rounded-xl border border-cardBorder h-64 sm:h-72 overflow-y-auto text-slate-300 space-y-3">
+                                    <span class="text-slate-600">// Press "Cast Attack" to trigger test case verification with line-by-line purpose traces...</span>
+                                </div>
+                            </div>
+
+                            <div class="mt-4 pt-4 border-t border-cardBorder flex flex-wrap items-center justify-between text-[11px] text-slate-400 gap-2">
+                                <span id="telemetry-time">Exec Time: -- ms</span>
+                                <span id="telemetry-mem">Memory: -- MB</span>
+                                <span id="telemetry-xp" class="text-amber-400 font-bold">XP Earned: 0</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <!-- PAGE 5: BYTE RACER ARCADE (150+ QUESTIONS) -->
+        <div id="page-arcade" class="page-view">
+            <section class="py-10 sm:py-16 px-4 max-w-5xl mx-auto">
+                <div class="cyber-panel p-4 sm:p-8 rounded-3xl border border-amber-500/40 text-center relative overflow-hidden glow-gold">
+                    <div class="absolute -right-10 -top-10 w-40 h-40 bg-amber-500/10 rounded-full blur-2xl"></div>
+                    <div class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs font-semibold mb-4">
+                        <i class="fa-solid fa-gamepad"></i> ARCADE SPEEDRUN CHALLENGE
+                    </div>
+                    <h3 class="text-2xl sm:text-4xl font-black text-white mb-3">Byte Racer: 150+ Syntax Speedrun</h3>
+                    <p class="text-slate-400 max-w-xl mx-auto mb-6 text-xs sm:text-sm">
+                        Test your programming memory under pressure! Race through 150+ trivia & syntax questions across 5 core tech categories.
+                    </p>
+
+                    <!-- Responsive Category Filter Buttons -->
+                    <div class="flex flex-wrap justify-center gap-2 mb-6 font-mono text-xs">
+                        <button onclick="setArcadeCategory('all')" id="cat-all" class="cat-btn px-3 py-1.5 rounded-lg bg-amber-500 text-black font-bold">All (150+)</button>
+                        <button onclick="setArcadeCategory('js')" id="cat-js" class="cat-btn px-3 py-1.5 rounded-lg bg-slate-900 border border-cardBorder text-slate-300">JavaScript</button>
+                        <button onclick="setArcadeCategory('python')" id="cat-python" class="cat-btn px-3 py-1.5 rounded-lg bg-slate-900 border border-cardBorder text-slate-300">Python</button>
+                        <button onclick="setArcadeCategory('dsa')" id="cat-dsa" class="cat-btn px-3 py-1.5 rounded-lg bg-slate-900 border border-cardBorder text-slate-300">DSA</button>
+                        <button onclick="setArcadeCategory('systems')" id="cat-systems" class="cat-btn px-3 py-1.5 rounded-lg bg-slate-900 border border-cardBorder text-slate-300">C++ / Java</button>
+                        <button onclick="setArcadeCategory('general')" id="cat-general" class="cat-btn px-3 py-1.5 rounded-lg bg-slate-900 border border-cardBorder text-slate-300">SQL / Git / Linux</button>
+                    </div>
+
+                    <!-- Arcade Console Display -->
+                    <div id="arcade-game-box" class="bg-darkBg p-4 sm:p-6 rounded-2xl border border-cardBorder max-w-2xl mx-auto text-left">
+                        <div class="flex justify-between items-center mb-4 text-xs font-mono font-bold">
+                            <span class="text-cyan-400">SCORE: <span id="arcade-score" class="text-white text-sm sm:text-base">0</span></span>
+                            <span class="text-purple-400">STREAK: <span id="arcade-streak" class="text-white text-sm sm:text-base">0x</span></span>
+                            <span class="text-amber-400">NITRO: <span id="arcade-timer" class="text-white text-sm sm:text-base">60</span>s</span>
+                        </div>
+                        <div id="arcade-question-cat" class="text-[10px] font-mono text-amber-400 uppercase tracking-wider mb-1">Select a category and hit start</div>
+                        <div id="arcade-question" class="font-mono text-xs sm:text-base text-yellow-300 bg-slate-950 p-4 rounded-xl mb-4 border border-cardBorder min-h-[90px] flex items-center">
+                            Press "Start Byte Racer" to launch high-speed programming questions!
+                        </div>
+                        <div id="arcade-options" class="grid grid-cols-1 gap-2.5 mb-6 font-mono text-xs">
+                            <!-- Injected dynamically -->
+                        </div>
+                        <button id="arcade-start-btn" onclick="startByteRacer()" class="w-full py-3.5 bg-gradient-to-r from-amber-400 via-orange-500 to-red-500 text-black font-black uppercase tracking-wider text-xs sm:text-sm rounded-xl hover:opacity-90 transition glow-gold">
+                            Start Byte Racer
+                        </button>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <!-- PAGE 6: LEADERBOARD & GUILD WARS -->
+        <div id="page-leaderboard" class="page-view">
+            <section class="py-10 sm:py-16 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="text-center max-w-3xl mx-auto mb-8 sm:mb-12">
+                    <span class="text-[10px] sm:text-xs font-bold uppercase tracking-widest text-amber-400 bg-amber-950/60 border border-amber-500/30 px-3 py-1 rounded-full">Global Arena Rankings</span>
+                    <h2 class="text-3xl sm:text-5xl font-black text-white mt-3 sm:mt-4 mb-2 sm:mb-3">Leaderboard & Guild Wars</h2>
+                    <p class="text-slate-400 text-xs sm:text-sm">Top algorithm racers, boss slayers, and guild battle statistics for Season 1.</p>
+                </div>
+
+                <div class="cyber-panel p-4 sm:p-8 rounded-3xl border-amber-500/30 max-w-5xl mx-auto">
+                    <div class="flex items-center justify-between border-b border-cardBorder pb-4 mb-6 font-mono text-xs">
+                        <span class="text-amber-400 font-bold"><i class="fa-solid fa-crown mr-2"></i>WEEKLY TOP RACERS</span>
+                        <span class="text-slate-400 text-[10px] sm:text-xs">Updated Real-Time</span>
+                    </div>
+                    <div class="space-y-3 font-mono text-xs">
+                        <div class="p-3 sm:p-4 bg-slate-900 rounded-xl border border-amber-500/40 flex items-center justify-between">
+                            <div class="flex items-center space-x-3 sm:space-x-4">
+                                <span class="text-amber-400 font-black text-sm sm:text-base">#1</span>
+                                <div class="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-amber-500/20 border border-amber-400 flex items-center justify-center font-bold text-amber-300 text-xs sm:text-base">NE</div>
+                                <div>
+                                    <div class="text-white font-bold text-xs sm:text-sm">NeoMatrix_99</div>
+                                    <div class="text-purple-400 text-[9px] sm:text-[10px]">Guild: Binary Overlords</div>
+                                </div>
+                            </div>
+                            <div class="text-right">
+                                <div class="text-amber-400 font-bold text-xs sm:text-sm">14,250 XP</div>
+                                <div class="text-slate-400 text-[9px] sm:text-[10px]">100% Accuracy</div>
+                            </div>
+                        </div>
+
+                        <div class="p-3 sm:p-4 bg-slate-900 rounded-xl border border-slate-700 flex items-center justify-between">
+                            <div class="flex items-center space-x-3 sm:space-x-4">
+                                <span class="text-slate-300 font-black text-sm sm:text-base">#2</span>
+                                <div class="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-cyan-500/20 border border-cyan-400 flex items-center justify-center font-bold text-cyan-300 text-xs sm:text-base">CY</div>
+                                <div>
+                                    <div class="text-white font-bold text-xs sm:text-sm">CyberKnight_X (You)</div>
+                                    <div class="text-cyan-400 text-[9px] sm:text-[10px]">Guild: Algorithmic Mages</div>
+                                </div>
+                            </div>
+                            <div class="text-right">
+                                <div class="text-cyan-400 font-bold text-xs sm:text-sm">12,850 XP</div>
+                                <div class="text-slate-400 text-[9px] sm:text-[10px]">98% Accuracy</div>
+                            </div>
+                        </div>
+
+                        <div class="p-3 sm:p-4 bg-slate-900 rounded-xl border border-slate-700 flex items-center justify-between">
+                            <div class="flex items-center space-x-3 sm:space-x-4">
+                                <span class="text-amber-700 font-black text-sm sm:text-base">#3</span>
+                                <div class="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-emerald-500/20 border border-emerald-400 flex items-center justify-center font-bold text-emerald-300 text-xs sm:text-base">DP</div>
+                                <div>
+                                    <div class="text-white font-bold text-xs sm:text-sm">DPMaster_Pro</div>
+                                    <div class="text-emerald-400 text-[9px] sm:text-[10px]">Guild: Dynamic Wizards</div>
+                                </div>
+                            </div>
+                            <div class="text-right">
+                                <div class="text-emerald-400 font-bold text-xs sm:text-sm">10,400 XP</div>
+                                <div class="text-slate-400 text-[9px] sm:text-[10px]">95% Accuracy</div>
+                            </div>
+                        </div>
+
+                        <div class="p-3 sm:p-4 bg-slate-900/60 rounded-xl border border-cardBorder flex items-center justify-between">
+                            <div class="flex items-center space-x-3 sm:space-x-4">
+                                <span class="text-slate-500 font-bold text-xs sm:text-sm">#4</span>
+                                <div class="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-slate-800 flex items-center justify-center font-bold text-slate-400 text-xs sm:text-base">BYTE</div>
+                                <div>
+                                    <div class="text-slate-300 font-bold text-xs sm:text-sm">ByteStriker</div>
+                                    <div class="text-slate-500 text-[9px] sm:text-[10px]">Guild: Stack Overflow</div>
+                                </div>
+                            </div>
+                            <div class="text-right">
+                                <div class="text-slate-300 font-bold text-xs sm:text-sm">8,900 XP</div>
+                                <div class="text-slate-400 text-[9px] sm:text-[10px]">92% Accuracy</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <!-- PAGE 7: TECH STACK & SYSTEM ENGINE -->
+        <div id="page-techstack" class="page-view">
+            <section class="py-10 sm:py-16 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="text-center max-w-3xl mx-auto mb-8 sm:mb-12">
+                    <span class="text-[10px] sm:text-xs font-bold uppercase tracking-widest text-cyan-400 bg-cyan-950/60 border border-cyan-500/30 px-3 py-1 rounded-full">System Architecture</span>
+                    <h2 class="text-3xl sm:text-5xl font-black text-white mt-3 sm:mt-4 mb-2 sm:mb-3">Tech Stack & Engine</h2>
+                    <p class="text-slate-400 text-xs sm:text-sm">Architectural layout of CodeArena's microservices, dynamic battle system, and sandboxed code evaluator.</p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+                    <div class="cyber-panel p-6 rounded-2xl tilt-card">
+                        <i class="fa-brands fa-react text-cyan-400 text-3xl mb-4"></i>
+                        <h4 class="text-lg font-bold text-white mb-2">Frontend SPA Engine</h4>
+                        <p class="text-sm text-slate-400 mb-4">HTML5 Single-Page Router, Dynamic Quest Engine, Responsive Tailwind Layout, Canvas particle visualizer.</p>
+                        <span class="text-xs font-mono text-cyan-400 bg-cyan-950 px-2.5 py-1 rounded border border-cyan-500/30">Client-Side Router</span>
+                    </div>
+
+                    <div class="cyber-panel p-6 rounded-2xl tilt-card">
+                        <i class="fa-solid fa-server text-emerald-400 text-3xl mb-4"></i>
+                        <h4 class="text-lg font-bold text-white mb-2">FastAPI Microservice</h4>
+                        <p class="text-sm text-slate-400 mb-4">High-throughput asynchronous Python FastAPI handling player telemetry, XP drops, and battle states.</p>
+                        <span class="text-xs font-mono text-emerald-400 bg-emerald-950 px-2.5 py-1 rounded border border-emerald-500/30">Python 3.10 + Redis</span>
+                    </div>
+
+                    <div class="cyber-panel p-6 rounded-2xl tilt-card">
+                        <i class="fa-solid fa-microchip text-purple-400 text-3xl mb-4"></i>
+                        <h4 class="text-lg font-bold text-white mb-2">Isolated Judge Engine</h4>
+                        <p class="text-sm text-slate-400 mb-4">Containerized Judge runner delivering isolated code evaluation and boss damage calculations under 50ms.</p>
+                        <span class="text-xs font-mono text-purple-300 bg-purple-950 px-2.5 py-1 rounded border border-purple-500/30">Judge0 & Docker</span>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <!-- PAGE 8: SANDBOX SECURITY & SHIELD -->
+        <div id="page-security" class="page-view">
+            <section class="py-10 sm:py-16 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="text-center max-w-3xl mx-auto mb-8 sm:mb-12">
+                    <span class="text-[10px] sm:text-xs font-bold uppercase tracking-widest text-rose-400 bg-rose-950/60 border border-rose-500/30 px-3 py-1 rounded-full">Zero-Trust Security</span>
+                    <h2 class="text-3xl sm:text-5xl font-black text-white mt-3 sm:mt-4 mb-2 sm:mb-3">Sandbox Security Shield</h2>
+                    <p class="text-slate-400 text-xs sm:text-sm">How CodeArena safely executes untrusted code inside isolated runtime containers.</p>
+                </div>
+
+                <div class="cyber-panel p-6 sm:p-12 rounded-3xl border-rose-500/30 max-w-4xl mx-auto">
+                    <div class="space-y-6 text-xs sm:text-sm text-slate-300">
+                        <div class="flex items-start space-x-4">
+                            <i class="fa-solid fa-shield-virus text-rose-400 text-2xl mt-1"></i>
+                            <div>
+                                <h4 class="text-white font-bold text-sm sm:text-base mb-1">Seccomp & Syscall Filtering</h4>
+                                <p class="text-slate-400">All code evaluation containers restrict dangerous kernel syscalls like fork bombs, socket creation, and file system writes.</p>
+                            </div>
+                        </div>
+
+                        <div class="flex items-start space-x-4">
+                            <i class="fa-solid fa-stopwatch text-cyan-400 text-2xl mt-1"></i>
+                            <div>
+                                <h4 class="text-white font-bold text-sm sm:text-base mb-1">CPU & Execution Time Limits</h4>
+                                <p class="text-slate-400">Submissions are hard-capped at 2.0 seconds execution wall time to eliminate infinite loops and resource hogging.</p>
+                            </div>
+                        </div>
+
+                        <div class="flex items-start space-x-4">
+                            <i class="fa-solid fa-memory text-purple-400 text-2xl mt-1"></i>
+                            <div>
+                                <h4 class="text-white font-bold text-sm sm:text-base mb-1">Strict Cgroup RAM Quotas</h4>
+                                <p class="text-slate-400">Memory usage is constrained to a 256MB limit per evaluation container. Out of memory triggers automatic SIGKILL.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+    </main>
+
+    <!-- FOOTER -->
+    <footer class="bg-slate-950 border-t border-cardBorder relative z-10 pt-12 pb-12">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
+                <div class="md:col-span-2 space-y-3">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-neonPurple via-cyberCyan to-neonEmerald flex items-center justify-center glow-purple">
+                            <i class="fa-solid fa-gamepad text-black font-extrabold text-base"></i>
+                        </div>
+                        <span class="text-xl font-black tracking-wider bg-gradient-to-r from-cyan-400 via-purple-400 to-emerald-400 bg-clip-text text-transparent">CodeArena</span>
+                    </div>
+                    <p class="text-slate-400 text-xs max-w-sm">
+                        Gamified adaptive coding platform with dynamic RPG quests, interactive boss fights, live code judge, and Byte Racer 150+ syntax speedruns.
+                    </p>
+                </div>
+                <div>
+                    <h4 class="text-xs font-bold uppercase tracking-widest text-cyan-400 mb-3 font-mono">Navigation</h4>
+                    <ul class="space-y-2 text-xs text-slate-400">
+                        <li><button onclick="navigateTo('home')" class="hover:text-white">Home</button></li>
+                        <li><button onclick="navigateTo('quests')" class="hover:text-white">Quests & Bosses</button></li>
+                        <li><button onclick="navigateTo('skilltree')" class="hover:text-white">Skill Trees</button></li>
+                        <li><button onclick="navigateTo('arena')" class="hover:text-white">Live Judge</button></li>
+                    </ul>
+                </div>
+                <div>
+                    <h4 class="text-xs font-bold uppercase tracking-widest text-purple-400 mb-3 font-mono">Modes</h4>
+                    <ul class="space-y-2 text-xs text-slate-400">
+                        <li><button onclick="navigateTo('arcade')" class="hover:text-white">Byte Racer (150+ Qs)</button></li>
+                        <li><button onclick="navigateTo('leaderboard')" class="hover:text-white">Leaderboards</button></li>
+                        <li><button onclick="navigateTo('techstack')" class="hover:text-white">Tech Engine</button></li>
+                        <li><button onclick="navigateTo('security')" class="hover:text-white">Sandbox Security</button></li>
+                    </ul>
+                </div>
+            </div>
+            <div class="pt-6 border-t border-cardBorder text-center text-xs text-slate-500 font-mono">
+                © 2026 CodeArena. All rights reserved. Gamified Adaptive Coding Platform.
+            </div>
+        </div>
+    </footer>
+
+    <!-- DYNAMIC QUEST & BOSS FIGHT INSPECTION MODAL PORTAL -->
+    <div id="quest-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md hidden p-4 overflow-y-auto">
+        <div id="quest-modal-card" class="cyber-panel p-6 sm:p-8 rounded-3xl max-w-xl w-full border relative my-auto glow-purple transition-all">
+            <button onclick="closeQuestModal()" class="absolute top-5 right-5 text-slate-400 hover:text-white text-xl z-10">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+            <div id="quest-modal-body">
+                <!-- Dynamically populated in JS -->
+            </div>
+        </div>
+    </div>
+
+    <!-- AUTHENTICATION MODAL PORTAL -->
+    <div id="auth-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md hidden p-4 overflow-y-auto">
+        <div class="cyber-panel p-6 sm:p-8 rounded-3xl max-w-md w-full border border-purple-500/40 relative glow-purple my-auto">
+            <button onclick="closeAuthModal()" class="absolute top-5 right-5 text-slate-400 hover:text-white text-xl">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+            <div class="flex border-b border-cardBorder mb-6 pb-2 space-x-4 font-mono text-sm">
+                <button id="tab-login-btn" onclick="switchAuthTab('login')" class="text-cyan-400 font-bold border-b-2 border-cyan-400 pb-2 flex items-center space-x-2">
+                    <i class="fa-solid fa-right-to-bracket"></i><span>LOGIN</span>
+                </button>
+                <button id="tab-register-btn" onclick="switchAuthTab('register')" class="text-slate-400 hover:text-white pb-2 flex items-center space-x-2">
+                    <i class="fa-solid fa-user-plus"></i><span>REGISTER</span>
+                </button>
+            </div>
+            <form id="login-form" onsubmit="handleLoginSubmit(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-mono uppercase text-slate-300 mb-1">Email / Player Handle</label>
+                    <input type="text" id="login-email" required placeholder="player@codearena.gg" class="w-full bg-slate-900 border border-cardBorder rounded-xl px-4 py-2.5 text-xs text-white outline-none focus:border-cyan-400">
+                </div>
+                <div>
+                    <label class="block text-xs font-mono uppercase text-slate-300 mb-1">Password</label>
+                    <input type="password" id="login-password" required placeholder="••••••••" class="w-full bg-slate-900 border border-cardBorder rounded-xl px-4 py-2.5 text-xs text-white outline-none focus:border-cyan-400">
+                </div>
+                <button type="submit" class="w-full py-3 rounded-xl font-black text-xs uppercase tracking-wider text-black bg-gradient-to-r from-cyan-400 via-emerald-400 to-purple-400 hover:opacity-90 transition">
+                    Authenticate Player
+                </button>
+            </form>
+            <form id="register-form" onsubmit="handleRegisterSubmit(event)" class="space-y-4 hidden">
+                <div>
+                    <label class="block text-xs font-mono uppercase text-slate-300 mb-1">Player Handle</label>
+                    <input type="text" id="reg-handle" required placeholder="CyberSlayer99" class="w-full bg-slate-900 border border-cardBorder rounded-xl px-4 py-2.5 text-xs text-white outline-none focus:border-purple-400">
+                </div>
+                <div>
+                    <label class="block text-xs font-mono uppercase text-slate-300 mb-1">Email</label>
+                    <input type="email" id="reg-email" required placeholder="slayer@codearena.gg" class="w-full bg-slate-900 border border-cardBorder rounded-xl px-4 py-2.5 text-xs text-white outline-none focus:border-purple-400">
+                </div>
+                <button type="submit" class="w-full py-3 rounded-xl font-black text-xs uppercase tracking-wider text-black bg-gradient-to-r from-purple-400 via-cyan-400 to-emerald-400 hover:opacity-90 transition">
+                    Create Profile
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- JAVASCRIPT APPLICATION ENGINE -->
+    <script>
+        // 1. Responsive Interactive Canvas Particles Background
+        const canvas = document.getElementById('interactive-bg-canvas');
+        const ctx = canvas.getContext('2d');
+        let mouseX = window.innerWidth / 2;
+        let mouseY = window.innerHeight / 2;
+
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        window.addEventListener('mousemove', (e) => {
+            mouseX = e.clientX;
+            mouseY = e.clientY;
+        });
+
+        const codeSymbols = ['{ }', '</>', 'fn()', '0101', '=>', 'dp[]', 'O(N)', 'RAM'];
+        const particles = Array.from({ length: 30 }, () => ({
+            x: Math.random() * window.innerWidth,
+            y: Math.random() * window.innerHeight,
+            symbol: codeSymbols[Math.floor(Math.random() * codeSymbols.length)],
+            speedX: (Math.random() - 0.5) * 0.5,
+            speedY: (Math.random() - 0.5) * 0.5,
+            size: Math.random() * 12 + 10,
+            opacity: Math.random() * 0.3 + 0.1
+        }));
+
+        function renderInteractiveBg() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            const gradient = ctx.createRadialGradient(mouseX, mouseY, 0, mouseX, mouseY, 350);
+            gradient.addColorStop(0, 'rgba(139, 92, 246, 0.1)');
+            gradient.addColorStop(1, 'transparent');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            particles.forEach(p => {
+                p.x += p.speedX;
+                p.y += p.speedY;
+                if (p.x < 0) p.x = canvas.width;
+                if (p.x > canvas.width) p.x = 0;
+                if (p.y < 0) p.y = canvas.height;
+                if (p.y > canvas.height) p.y = 0;
+                ctx.font = `${p.size}px 'Fira Code', monospace`;
+                ctx.fillStyle = `rgba(139, 92, 246, ${p.opacity})`;
+                ctx.fillText(p.symbol, p.x, p.y);
+            });
+            requestAnimationFrame(renderInteractiveBg);
+        }
+        renderInteractiveBg();
+
+        // Mobile Menu Drawer Handler
+        function toggleMobileMenu() {
+            const drawer = document.getElementById('mobile-menu-drawer');
+            const icon = document.getElementById('mobile-menu-icon');
+            if (drawer.classList.contains('hidden')) {
+                drawer.classList.remove('hidden');
+                icon.className = "fa-solid fa-xmark text-lg text-cyan-400";
+            } else {
+                drawer.classList.add('hidden');
+                icon.className = "fa-solid fa-bars text-lg";
+            }
+        }
+
+        // 2. SPA Navigation Router
+        function navigateTo(pageId) {
+            document.querySelectorAll('.page-view').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.nav-link').forEach(el => el.classList.remove('active'));
+            
+            const targetPage = document.getElementById(`page-${pageId}`);
+            if (targetPage) {
+                targetPage.classList.add('active');
+                const activeNavBtn = document.querySelector(`.nav-link[data-page="${pageId}"]`);
+                if (activeNavBtn) activeNavBtn.classList.add('active');
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            }
+        }
+
+        // ==========================================
+        // 3. WEAK TOPICS SELECTION & AI ENGINE STATE
+        // ==========================================
+        const weakTopicsList = [
+            { id: 'dp', label: 'Dynamic Programming', icon: 'fa-brain' },
+            { id: 'graphs', label: 'Graphs & Dijkstra', icon: 'fa-network-wired' },
+            { id: 'hashmap', label: 'Hash Maps & Two Pointers', icon: 'fa-arrows-left-right' },
+            { id: 'trees', label: 'Trees & Heaps', icon: 'fa-sitemap' },
+            { id: 'binarysearch', label: 'Binary Search', icon: 'fa-magnifying-glass' },
+            { id: 'slidingwindow', label: 'Sliding Window', icon: 'fa-sliders' }
+        ];
+
+        let selectedWeaknessIds = ['dp', 'graphs']; // Default weak spots
+
+        function renderWeaknessSelector() {
+            const container = document.getElementById('weakness-topics-box');
+            if (!container) return;
+            container.innerHTML = '';
+
+            weakTopicsList.forEach(topic => {
+                const isSelected = selectedWeaknessIds.includes(topic.id);
+                const btn = document.createElement('button');
+                btn.className = `p-2.5 rounded-xl border text-left transition-all flex items-center justify-between ${
+                    isSelected 
+                        ? 'bg-rose-500/20 text-rose-300 border-rose-500/60 font-bold' 
+                        : 'bg-slate-900 text-slate-400 border-cardBorder hover:text-white'
+                }`;
+                btn.onclick = () => toggleWeaknessTopic(topic.id);
+                btn.innerHTML = `
+                    <span class="flex items-center space-x-2 truncate">
+                        <i class="fa-solid ${topic.icon} text-xs"></i>
+                        <span class="truncate">${topic.label}</span>
+                    </span>
+                    <i class="fa-solid ${isSelected ? 'fa-square-check text-rose-400' : 'fa-square text-slate-600'} text-xs ml-1"></i>
+                `;
+                container.appendChild(btn);
+            });
+
+            document.getElementById('selected-weakness-count').textContent = `${selectedWeaknessIds.length} weak topics targeted`;
+        }
+
+        function toggleWeaknessTopic(topicId) {
+            if (selectedWeaknessIds.includes(topicId)) {
+                selectedWeaknessIds = selectedWeaknessIds.filter(id => id !== topicId);
+            } else {
+                selectedWeaknessIds.push(topicId);
+            }
+            renderWeaknessSelector();
+            renderQuests(); // Re-render quests with dynamic weak-spot badges & XP multiplier highlights
+            showToast(`AI Adaptive Engine target updated!`, 'info');
+        }
+        renderWeaknessSelector();
+
+        // ==========================================
+        // 4. DYNAMIC QUESTS & BOSS FIGHT ENGINE
+        // ==========================================
+        const questData = [
+            { 
+                id: 101, 
+                name: "The Array Sentinel", 
+                bossName: "SENTINEL OMEGA",
+                icon: "fa-robot",
+                tier: "Novice", 
+                xp: 150, 
+                maxHp: 100,
+                currentHp: 100,
+                topicCategory: "hashmap",
+                topic: "Hash Maps & Two Pointers", 
+                desc: "Breach the gatekeeper O(N) traversal defenses before timer overflow.",
+                mechanic: "Shielded against O(N²) nested loops. Requires linear O(N) space hash map lookup.",
+                testSuite: [
+                    { testId: 1, name: "Basic Pair Verification", lines: "Lines 3-7", purpose: "Verifies O(N) dictionary lookup for complementary pair values.", input: "[2, 7, 11, 15], Target = 9", expected: "[0, 1]" },
+                    { testId: 2, name: "Unsorted Array Boundary", lines: "Lines 4-6", purpose: "Validates handling of unsorted array order and duplicate numbers.", input: "[3, 2, 4], Target = 6", expected: "[1, 2]" },
+                    { testId: 3, name: "Negative Numbers Edge Case", lines: "Lines 5-7", purpose: "Ensures negative values are stored and calculated correctly.", input: "[-1, -3, 7, 12], Target = 4", expected: "[0, 2]" }
+                ]
+            },
+            { 
+                id: 102, 
+                name: "Binary Search Beast", 
+                bossName: "LOGARITHMIC HYDRA",
+                icon: "fa-worm",
+                tier: "Novice", 
+                xp: 200, 
+                maxHp: 180,
+                currentHp: 180,
+                topicCategory: "binarysearch",
+                topic: "Binary Search", 
+                desc: "Slice execution search spaces in O(log N) iterations to split heads.",
+                mechanic: "Regenerates +20 HP on linear scans. Requires O(log N) binary interval division.",
+                testSuite: [
+                    { testId: 1, name: "Middle Split Test", lines: "Lines 2-4", purpose: "Checks if target value is found at index mid calculation.", input: "[1, 3, 5, 7, 9], Target = 5", expected: "Index 2" },
+                    { testId: 2, name: "Missing Element Bounds", lines: "Lines 5-7", purpose: "Ensures loop terminates gracefully when element does not exist.", input: "[2, 4, 6, 8], Target = 5", expected: "-1 (Not Found)" }
+                ]
+            },
+            { 
+                id: 201, 
+                name: "Graph Goliath: Dijkstra", 
+                bossName: "PATHFINDER BEHEMOTH",
+                icon: "fa-network-wired",
+                tier: "Elite", 
+                xp: 450, 
+                maxHp: 650,
+                currentHp: 650,
+                topicCategory: "graphs",
+                topic: "Graphs & Dijkstra", 
+                desc: "Traverse weighted graph mazes and evade path traps to strike core node.",
+                mechanic: "Enrages on negative edge cycles. Requires Min-Heap Priority Queue.",
+                testSuite: [
+                    { testId: 1, name: "Shortest Node Distance", lines: "Lines 1-8", purpose: "Validates Min-Heap pop logic for minimal path weight selection.", input: "Nodes=4, Edges=[(0,1,1), (1,2,2), (0,2,5)]", expected: "Shortest Path = 3" }
+                ]
+            },
+            { 
+                id: 202, 
+                name: "Sliding Window Hydra", 
+                bossName: "BOUNDING GORGON",
+                icon: "fa-eye",
+                tier: "Elite", 
+                xp: 500, 
+                maxHp: 720,
+                currentHp: 720,
+                topicCategory: "slidingwindow",
+                topic: "Sliding Window", 
+                desc: "Maintain dynamic sliding bounds to slice continuous subproblem streams.",
+                mechanic: "Freezes execution if inner loop re-scans window elements.",
+                testSuite: [
+                    { testId: 1, name: "Window Max Subarray", lines: "Lines 3-6", purpose: "Tests window expansion and contraction pointers in O(N).", input: "Arr=[2, 1, 5, 1, 3, 2], K=3", expected: "Max Sum = 9" }
+                ]
+            },
+            { 
+                id: 301, 
+                name: "Dynamic Overlord: Memo", 
+                bossName: "OVERLORD MEMOIZOR",
+                icon: "fa-skull-crossbones",
+                tier: "Mythic", 
+                xp: 1200, 
+                maxHp: 2500,
+                currentHp: 2500,
+                topicCategory: "dp",
+                topic: "Dynamic Programming", 
+                desc: "Defeat overlapping subproblems with memoized state transitions.",
+                mechanic: "Phase 1: Top-down recursion cache. Phase 2: Bottom-up space optimization.",
+                testSuite: [
+                    { testId: 1, name: "Overlapping Subproblems", lines: "Lines 4-8", purpose: "Confirms cache hits prevent exponential T(N) time explosion.", input: "N = 45 (Fibonacci DP)", expected: "Result = 1134903170" }
+                ]
+            },
+            { 
+                id: 302, 
+                name: "Segment Tree Titan", 
+                bossName: "TITAN CHRONOS",
+                icon: "fa-mountain",
+                tier: "Mythic", 
+                xp: 1500, 
+                maxHp: 3200,
+                currentHp: 3200,
+                topicCategory: "trees",
+                topic: "Trees & Heaps", 
+                desc: "Perform fast point updates and interval queries in sub-millisecond O(log N).",
+                mechanic: "Lazy propagation shield active during interval range queries.",
+                testSuite: [
+                    { testId: 1, name: "Interval Range Sum", lines: "Lines 2-5", purpose: "Tests segment tree node splitting for O(log N) sum query.", input: "Query Range [1, 3]", expected: "Sum = 18" }
+                ]
+            }
+        ];
+
+        let activeBossQuest = questData[0]; // Active Boss in Battle Arena
+
+        function renderQuests(filter = 'all') {
+            const container = document.getElementById('quests-grid-container');
+            if (!container) return;
+            container.innerHTML = '';
+
+            const filtered = filter === 'all' ? questData : questData.filter(q => q.tier === filter);
+            filtered.forEach(q => {
+                let isWeakTarget = selectedWeaknessIds.includes(q.topicCategory);
+                let badgeCol = q.tier === 'Novice' ? 'emerald' : (q.tier === 'Elite' ? 'amber' : 'purple');
+                let hpPercent = Math.round((q.currentHp / q.maxHp) * 100);
+                
+                let bonusXp = isWeakTarget ? Math.round(q.xp * 1.25) : q.xp;
+
+                let card = document.createElement('div');
+                card.className = `cyber-panel p-5 sm:p-7 rounded-2xl relative ${isWeakTarget ? 'border-rose-500/80 shadow-rose-950/40 shadow-xl' : `border-${badgeCol}-500/40`} hover:scale-[1.02] transition-transform cursor-pointer flex flex-col justify-between`;
+                card.onclick = () => openQuestModal(q.id);
+                card.innerHTML = `
+                    <div>
+                        <div class="flex justify-between items-start mb-4">
+                            <span class="px-2.5 py-1 rounded-md bg-${badgeCol}-500/20 text-${badgeCol}-400 font-mono text-[10px] font-bold uppercase border border-${badgeCol}-500/40 flex items-center space-x-1.5">
+                                <i class="fa-solid ${q.icon}"></i>
+                                <span>${q.tier} Quest</span>
+                            </span>
+                            <div class="text-right">
+                                <span class="text-amber-400 font-mono text-xs font-bold bg-amber-950/40 px-2 py-0.5 rounded border border-amber-500/30">+${bonusXp} XP</span>
+                                ${isWeakTarget ? `<span class="block text-[9px] font-mono text-rose-400 font-bold mt-0.5">+25% WEAKNESS BONUS</span>` : ''}
+                            </div>
+                        </div>
+
+                        ${isWeakTarget ? `
+                            <div class="mb-3 px-2.5 py-1 rounded-lg bg-rose-950/80 border border-rose-500/40 text-rose-300 font-mono text-[10px] font-bold flex items-center space-x-1.5">
+                                <i class="fa-solid fa-bullseye text-rose-400"></i>
+                                <span>AI RECOMMENDED WEAK SPOT</span>
+                            </div>
+                        ` : ''}
+
+                        <h3 class="text-xl sm:text-2xl font-black text-white mb-2 flex items-center justify-between">
+                            <span>${q.name}</span>
+                        </h3>
+                        <div class="text-[11px] font-mono text-${badgeCol}-400 mb-3 font-semibold">BOSS: ${q.bossName}</div>
+                        <p class="text-slate-400 text-xs mb-5 leading-relaxed line-clamp-2">${q.desc}</p>
+                    </div>
+
+                    <div>
+                        <div class="p-3 bg-slate-950 rounded-xl border border-cardBorder font-mono text-xs space-y-2 mb-5">
+                            <div class="text-slate-400 flex justify-between text-[11px]">
+                                <span>Boss HP Status:</span> 
+                                <span class="text-${badgeCol}-400 font-bold">${q.currentHp} / ${q.maxHp} (${hpPercent}%)</span>
+                            </div>
+                            <div class="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
+                                <div class="bg-gradient-to-r from-${badgeCol}-500 to-rose-500 h-full transition-all duration-500" style="width: ${hpPercent}%"></div>
+                            </div>
+                            <div class="text-slate-500 text-[10px] pt-0.5 flex items-center justify-between">
+                                <span>Topic: ${q.topic}</span>
+                                <span class="text-slate-400 underline">Inspect Details &rarr;</span>
+                            </div>
+                        </div>
+                        <button onclick="event.stopPropagation(); launchQuestInArena(${q.id})" class="w-full py-3 rounded-xl bg-slate-900 hover:bg-${badgeCol}-500 hover:text-black font-bold text-xs uppercase tracking-wider transition-all border border-${badgeCol}-500/40 flex items-center justify-center space-x-2">
+                            <i class="fa-solid fa-gamepad"></i>
+                            <span>Engage Boss Battle</span>
+                        </button>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+        renderQuests();
+
+        function filterQuests(tier) {
+            renderQuests(tier);
+        }
+
+        // Dynamic Quest Modal Renderer
+        function openQuestModal(questId) {
+            const quest = questData.find(q => q.id === questId);
+            if (!quest) return;
+            const modal = document.getElementById('quest-modal');
+            const card = document.getElementById('quest-modal-card');
+            const body = document.getElementById('quest-modal-body');
+            let badgeCol = quest.tier === 'Novice' ? 'emerald' : (quest.tier === 'Elite' ? 'amber' : 'purple');
+            
+            card.className = `cyber-panel p-6 sm:p-8 rounded-3xl max-w-xl w-full border border-${badgeCol}-500/50 relative my-auto glow-${badgeCol} transition-all`;
+            
+            let hpPercent = Math.round((quest.currentHp / quest.maxHp) * 100);
+
+            body.innerHTML = `
+                <div class="flex items-center space-x-3 mb-4">
+                    <div class="w-12 h-12 rounded-2xl bg-${badgeCol}-500/20 border border-${badgeCol}-500/50 flex items-center justify-center text-${badgeCol}-400 text-2xl">
+                        <i class="fa-solid ${quest.icon}"></i>
+                    </div>
+                    <div>
+                        <span class="text-[10px] font-mono text-${badgeCol}-400 uppercase font-bold tracking-widest">[ ${quest.tier} DUNGEON BOSS ]</span>
+                        <h3 class="text-2xl font-black text-white">${quest.bossName}</h3>
+                    </div>
+                </div>
+
+                <div class="p-4 bg-slate-950 rounded-2xl border border-cardBorder font-mono text-xs space-y-3 mb-5">
+                    <div class="flex justify-between items-center text-slate-300">
+                        <span>Boss Health Bar:</span>
+                        <span class="text-rose-400 font-bold">${quest.currentHp} / ${quest.maxHp} HP</span>
+                    </div>
+                    <div class="w-full bg-slate-900 h-3 rounded-full overflow-hidden p-0.5 border border-slate-800">
+                        <div class="bg-gradient-to-r from-emerald-400 via-amber-400 to-rose-500 h-full rounded-full transition-all duration-500" style="width: ${hpPercent}%"></div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2 text-[11px] pt-1 text-slate-400">
+                        <div>Target Topic: <strong class="text-white">${quest.topic}</strong></div>
+                        <div class="text-right">Base Reward: <strong class="text-amber-400">${quest.xp} XP</strong></div>
+                    </div>
+                </div>
+
+                <div class="space-y-3 text-xs text-slate-300 font-sans mb-6">
+                    <div>
+                        <h4 class="font-bold text-white text-sm mb-1">Quest Lore & Objective:</h4>
+                        <p class="text-slate-400 leading-relaxed">${quest.desc}</p>
+                    </div>
+                    <div>
+                        <h4 class="font-bold text-rose-400 text-sm mb-1 flex items-center space-x-1.5 font-mono">
+                            <i class="fa-solid fa-triangle-exclamation"></i>
+                            <span>Boss Enrage Mechanics:</span>
+                        </h4>
+                        <p class="text-slate-400 bg-rose-950/30 border border-rose-500/20 p-3 rounded-xl font-mono text-[11px]">${quest.mechanic}</p>
+                    </div>
+                </div>
+
+                <button onclick="launchQuestInArena(${quest.id})" class="w-full py-4 rounded-xl font-black text-xs uppercase tracking-wider text-black bg-gradient-to-r from-${badgeCol}-400 via-emerald-400 to-cyan-400 hover:opacity-90 transition glow-cyan flex items-center justify-center space-x-2">
+                    <i class="fa-solid fa-swords text-sm"></i>
+                    <span>Engage Boss in Live Sandbox</span>
+                </button>
+            `;
+
+            modal.classList.remove('hidden');
+        }
+
+        function closeQuestModal() {
+            document.getElementById('quest-modal').classList.add('hidden');
+        }
+
+        function launchQuestInArena(questId) {
+            const quest = questData.find(q => q.id === questId);
+            if (!quest) return;
+            activeBossQuest = quest;
+            updateArenaBossHUD();
+            closeQuestModal();
+            navigateTo('arena');
+            showToast(`Engaging Boss: ${quest.bossName}!`, 'info');
+        }
+
+        function updateArenaBossHUD() {
+            const hud = document.getElementById('arena-boss-hud');
+            if (!hud || !activeBossQuest) return;
+
+            let badgeCol = activeBossQuest.tier === 'Novice' ? 'emerald' : (activeBossQuest.tier === 'Elite' ? 'amber' : 'purple');
+            let hpPercent = Math.max(0, Math.round((activeBossQuest.currentHp / activeBossQuest.maxHp) * 100));
+
+            hud.innerHTML = `
+                <div id="boss-hud-card" class="flex flex-col md:flex-row items-center justify-between gap-4">
+                    <div class="flex items-center space-x-4 w-full md:w-auto">
+                        <div class="w-14 h-14 rounded-2xl bg-${badgeCol}-500/20 border border-${badgeCol}-500/50 flex items-center justify-center text-${badgeCol}-400 text-3xl shrink-0 glow-${badgeCol}">
+                            <i class="fa-solid ${activeBossQuest.icon}"></i>
+                        </div>
+                        <div>
+                            <div class="flex items-center space-x-2">
+                                <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping"></span>
+                                <span class="font-black font-mono text-white text-base sm:text-lg">${activeBossQuest.bossName}</span>
+                                <span class="px-2 py-0.5 rounded bg-${badgeCol}-500/20 text-${badgeCol}-300 font-mono text-[10px] uppercase font-bold border border-${badgeCol}-500/30">${activeBossQuest.tier}</span>
+                            </div>
+                            <div class="text-xs text-slate-400 font-mono mt-0.5">${activeBossQuest.name} • ${activeBossQuest.topic}</div>
+                        </div>
+                    </div>
+
+                    <div class="w-full md:w-72 bg-slate-900/90 p-3 rounded-2xl border border-cardBorder font-mono">
+                        <div class="flex justify-between items-center text-xs mb-1.5">
+                            <span class="text-slate-400 text-[10px] font-bold">BOSS HP</span>
+                            <span id="boss-hp-counter" class="text-rose-400 font-black">${activeBossQuest.currentHp} / ${activeBossQuest.maxHp} HP</span>
+                        </div>
+                        <div class="w-full bg-slate-950 h-3 rounded-full overflow-hidden p-0.5 border border-slate-800">
+                            <div id="boss-hp-bar" class="bg-gradient-to-r from-emerald-400 via-amber-400 to-rose-500 h-full rounded-full transition-all duration-500" style="width: ${hpPercent}%"></div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+        updateArenaBossHUD();
+
+        // 5. Toast Notification
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            let icon = type === 'success' ? 'fa-circle-check text-emerald-400' : 'fa-circle-info text-cyan-400';
+            toast.className = `cyber-panel px-4 py-3 rounded-xl border border-purple-500/40 font-mono text-xs flex items-center space-x-3 shadow-2xl pointer-events-auto toast-animate`;
+            toast.innerHTML = `<i class="fa-solid ${icon} text-base"></i><span class="font-bold text-white">${message}</span>`;
+            container.appendChild(toast);
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        // 6. Auth State Engine
+        const DEFAULT_USER = { handle: 'CyberKnight_X', level: 24, xp: 4850, rank: 'Grandmaster' };
+        function getStoredUser() {
+            const data = localStorage.getItem('codearena_user');
+            return data ? JSON.parse(data) : DEFAULT_USER;
+        }
+        function setStoredUser(u) {
+            localStorage.setItem('codearena_user', JSON.stringify(u));
+            updateAuthUI();
+        }
+        function updateAuthUI() {
+            const user = getStoredUser();
+            const container = document.getElementById('nav-user-container');
+            if (container) {
+                container.innerHTML = `
+                    <div class="hidden sm:flex items-center space-x-2 px-3 py-1 rounded-lg bg-slate-900 border border-amber-500/30 text-amber-400 font-mono text-xs">
+                        <i class="fa-solid fa-crown text-amber-400"></i>
+                        <span>LVL <strong class="text-white">${user.level}</strong></span>
+                        <span class="text-slate-500">|</span>
+                        <span class="text-cyan-400">${user.xp} XP</span>
+                    </div>
+                    <button onclick="openAuthModal('login')" class="px-2.5 sm:px-3 py-1.5 rounded-lg bg-slate-900 border border-cardBorder text-xs font-bold text-slate-200 hover:border-cyan-400 transition">
+                        ${user.handle}
+                    </button>
+                `;
+            }
+        }
+        updateAuthUI();
+
+        function openAuthModal(tab) {
+            document.getElementById('auth-modal').classList.remove('hidden');
+            switchAuthTab(tab);
+        }
+        function closeAuthModal() {
+            document.getElementById('auth-modal').classList.add('hidden');
+        }
+        function switchAuthTab(tab) {
+            if (tab === 'login') {
+                document.getElementById('login-form').classList.remove('hidden');
+                document.getElementById('register-form').classList.add('hidden');
+            } else {
+                document.getElementById('login-form').classList.add('hidden');
+                document.getElementById('register-form').classList.remove('hidden');
+            }
+        }
+        function handleLoginSubmit(e) {
+            e.preventDefault();
+            const handle = document.getElementById('login-email').value.split('@')[0] || 'Player';
+            const user = { ...DEFAULT_USER, handle: handle };
+            setStoredUser(user);
+            closeAuthModal();
+            showToast(`Welcome back, ${handle}!`, 'success');
+        }
+        function handleRegisterSubmit(e) {
+            e.preventDefault();
+            const handle = document.getElementById('reg-handle').value;
+            const user = { handle: handle, level: 1, xp: 0, rank: 'Novice' };
+            setStoredUser(user);
+            closeAuthModal();
+            showToast(`Profile created for ${handle}!`, 'success');
+        }
+
+        // ========================================================
+        // 7. LIVE JUDGE & LINE-BY-LINE TEST CASE DIAGNOSTICS ENGINE
+        // ========================================================
+        function switchEditorLanguage() {
+            const lang = document.getElementById('demo-lang').value;
+            const input = document.getElementById('arena-code-input');
+            if (lang === 'python') {
+                input.value = `def solveTwoSum(nums, target):\n    # O(N) Hashmap solution\n    seen = {}\n    for idx, val in enumerate(nums):\n        complement = target - val\n        if complement in seen:\n            return [seen[complement], idx]\n        seen[val] = idx\n    return []`;
+            } else if (lang === 'cpp') {
+                input.value = `#include <vector>\n#include <unordered_map>\n\nstd::vector<int> solveTwoSum(std::vector<int>& nums, int target) {\n    std::unordered_map<int, int> seen;\n    for(int i = 0; i < nums.size(); ++i) {\n        int comp = target - nums[i];\n        if(seen.count(comp)) return {seen[comp], i};\n        seen[nums[i]] = i;\n    }\n    return {};\n}`;
+            } else if (lang === 'java') {
+                input.value = `import java.util.*;\n\nclass Solution {\n    public int[] solveTwoSum(int[] nums, int target) {\n        Map<Integer, Integer> map = new HashMap<>();\n        for (int i = 0; i < nums.length; i++) {\n            if (map.containsKey(target - nums[i])) return new int[]{map.get(target - nums[i]), i};\n            map.put(nums[i], i);\n        }\n        return new int[0];\n    }\n}`;
+            } else {
+                input.value = `function solveTwoSum(nums, target) {\n    const map = new Map();\n    for (let i = 0; i < nums.length; i++) {\n        const comp = target - nums[i];\n        if (map.has(comp)) return [map.get(comp), i];\n        map.set(nums[i], i);\n    }\n    return [];\n}`;
+            }
+        }
+
+        function executeBattleSimulation() {
+            const btn = document.getElementById('submit-code-btn');
+            const consoleBox = document.getElementById('arena-output-console');
+            const statusTag = document.getElementById('verdict-status-tag');
+            const timeTag = document.getElementById('telemetry-time');
+            const memTag = document.getElementById('telemetry-mem');
+            const xpTag = document.getElementById('telemetry-xp');
+
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner animate-spin"></i><span>Executing...</span>';
+            consoleBox.innerHTML = '<span class="text-purple-400">// Allocating container & attaching line trace hook...</span>';
+            statusTag.className = "px-3 py-1 rounded-md text-[10px] font-bold bg-amber-500/20 text-amber-400";
+            statusTag.textContent = "EVALUATING";
+
+            setTimeout(() => {
+                // Calculate Dynamic Damage to Boss
+                const damageDealt = Math.min(activeBossQuest.currentHp, Math.floor(activeBossQuest.maxHp * 0.5));
+                activeBossQuest.currentHp = Math.max(0, activeBossQuest.currentHp - damageDealt);
+                
+                // Shake Boss Card HUD
+                const bossHud = document.getElementById('boss-hud-card');
+                if (bossHud) {
+                    bossHud.classList.add('boss-hit-anim');
+                    setTimeout(() => bossHud.classList.remove('boss-hit-anim'), 400);
+                }
+
+                // Update HUD bars
+                updateArenaBossHUD();
+                renderQuests();
+
+                let bossDefeated = activeBossQuest.currentHp <= 0;
+                let suite = activeBossQuest.testSuite || [
+                    { testId: 1, name: "Default Test Pass", lines: "Lines 1-8", purpose: "Generic test suite execution", input: "Sample Input", expected: "Sample Output" }
+                ];
+
+                // Build Line-by-Line Purpose Diagnostic Logs
+                let logsHtml = '';
+                suite.forEach(tc => {
+                    logsHtml += `
+                        <div class="p-3 bg-slate-900 rounded-xl border border-emerald-500/30 text-xs font-mono space-y-1">
+                            <div class="flex justify-between items-center text-emerald-400 font-bold">
+                                <span>[TEST CASE ${tc.testId}] ${tc.name.toUpperCase()} - PASSED ✓</span>
+                                <span class="text-[10px] bg-emerald-950 px-2 py-0.5 rounded border border-emerald-500/40 text-cyan-300">Target: ${tc.lines}</span>
+                            </div>
+                            <div class="text-slate-300 text-[11px]"><strong class="text-purple-300">Code Purpose:</strong> ${tc.purpose}</div>
+                            <div class="text-[10px] text-slate-400 pt-0.5 flex justify-between">
+                                <span>Input: <code class="text-yellow-300">${tc.input}</code></span>
+                                <span>Expected: <code class="text-cyan-300">${tc.expected}</code></span>
+                            </div>
+                        </div>
+                    `;
+                });
+
+                logsHtml += `
+                    <div class="mt-2 pt-2 border-t border-slate-800">
+                        <span class="text-amber-300 font-bold block">⚔ CRITICAL HIT! Dealt -${damageDealt} HP to ${activeBossQuest.bossName}!</span>
+                        ${bossDefeated ? `<span class="text-cyan-300 font-black text-sm mt-1 block animate-bounce">★ BOSS SLAIN! +${activeBossQuest.xp} XP AWARDED ★</span>` : ''}
+                    </div>
+                `;
+
+                consoleBox.innerHTML = logsHtml;
+                statusTag.className = "px-3 py-1 rounded-md text-[10px] font-bold bg-emerald-500/20 text-emerald-400 glow-cyan";
+                statusTag.textContent = "ACCEPTED ✓";
+                timeTag.textContent = "Exec Time: 12 ms";
+                memTag.textContent = "Memory: 12.1 MB";
+                xpTag.textContent = `XP Earned: +${activeBossQuest.xp}`;
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i><span>Cast Attack</span>';
+
+                if (window.confetti) confetti({ particleCount: bossDefeated ? 120 : 60, spread: 70, origin: { y: 0.6 } });
+                
+                const user = getStoredUser();
+                user.xp += activeBossQuest.xp;
+                setStoredUser(user);
+                showToast(bossDefeated ? `VICTORY! Defeated ${activeBossQuest.bossName}!` : `CRITICAL HIT! -${damageDealt} HP!`, 'success');
+
+                if (bossDefeated) {
+                    setTimeout(() => {
+                        activeBossQuest.currentHp = activeBossQuest.maxHp;
+                        updateArenaBossHUD();
+                        renderQuests();
+                    }, 5000);
+                }
+            }, 1200);
+        }
+
+        // ==========================================
+        // 8. BYTE RACER ARCADE (150+ QUESTION BANK)
+        // ==========================================
+        const arcadeQuestionBank = [
+            // --- JAVASCRIPT / WEB DEV (30 Questions) ---
+            { cat: "js", q: "What is the result of `typeof NaN` in JavaScript?", options: ["'number'", "'NaN'", "'undefined'", "'object'"], correct: 0 },
+            { cat: "js", q: "Which method converts a JSON string into a JS object?", options: ["JSON.parse()", "JSON.stringify()", "JSON.toObject()", "Object.parse()"], correct: 0 },
+            { cat: "js", q: "What is the time complexity of `Array.prototype.push()`?", options: ["O(1)", "O(N)", "O(log N)", "O(N^2)"], correct: 0 },
+            { cat: "js", q: "Which keyword declares a block-scoped reassignable variable?", options: ["let", "const", "var", "global"], correct: 0 },
+            { cat: "js", q: "What does `Array.prototype.map()` return?", options: ["A new transformed array", "The original modified array", "A boolean", "The length of array"], correct: 0 },
+            { cat: "js", q: "Which value is falsy in JavaScript?", options: ["0", "'false'", "[]", "{}"], correct: 0 },
+            { cat: "js", q: "What does `==` do differently from `===`?", options: ["Performs type coercion", "Checks reference only", "Executes faster", "Creates a clone"], correct: 0 },
+            { cat: "js", q: "What is the return type of an `async` function?", options: ["Promise", "Object", "Function", "Callback"], correct: 0 },
+            { cat: "js", q: "Which array method checks if at least one element passes a test?", options: ["some()", "every()", "find()", "includes()"], correct: 0 },
+            { cat: "js", q: "What is closure in JavaScript?", options: ["A function bundled with its lexical environment", "A method to close a loop", "A memory cleanup process", "A private class keyword"], correct: 0 },
+            { cat: "js", q: "Which HTML attribute runs JS deferred after parsing?", options: ["defer", "async", "preload", "exec"], correct: 0 },
+            { cat: "js", q: "What does `Object.freeze()` do?", options: ["Prevents modification of existing properties", "Frees memory", "Converts object to string", "Deletes all keys"], correct: 0 },
+            { cat: "js", q: "Which operator is used for Nullish Coalescing?", options: ["??", "||", "&&", "?:"], correct: 0 },
+            { cat: "js", q: "What does `Array.prototype.reduce()` produce?", options: ["A single accumulated output value", "A filtered array", "A reversed array", "A DOM element"], correct: 0 },
+            { cat: "js", q: "What is the purpose of `preventDefault()` on event objects?", options: ["Stops default browser action for the event", "Stops event bubbling", "Deletes event listener", "Refreshes page"], correct: 0 },
+            { cat: "js", q: "What does `DOM` stand for?", options: ["Document Object Model", "Data Object Map", "Digital Operating Mode", "Direct Output Mechanism"], correct: 0 },
+            { cat: "js", q: "Which method removes the last element from an array?", options: ["pop()", "shift()", "slice()", "splice()"], correct: 0 },
+            { cat: "js", q: "What is the output of `[] + []` in JS?", options: ["'' (empty string)", "[]", "undefined", "NaN"], correct: 0 },
+            { cat: "js", q: "Which symbol creates a template literal string?", options: ["Backtick (` `)", "Single quote (' ')", "Double quote (\" \")", "Tilde (~ ~)"], correct: 0 },
+            { cat: "js", q: "What is the purpose of `Promise.all()`?", options: ["Resolves when all input promises resolve", "Resolves on the first promise", "Rejects all promises", "Executes in background thread"], correct: 0 },
+            { cat: "js", q: "How do you check if property 'x' exists in object 'obj'?", options: ["'x' in obj", "obj.has('x')", "obj.contains('x')", "x.exists(obj)"], correct: 0 },
+            { cat: "js", q: "What does `String.prototype.trim()` do?", options: ["Removes whitespace from both ends", "Shortens string length", "Converts to lowercase", "Splits into array"], correct: 0 },
+            { cat: "js", q: "What is event bubbling?", options: ["Events propagate up from target to ancestors", "Events trigger multiple times", "Events drop memory leaks", "Events execute downwards only"], correct: 0 },
+            { cat: "js", q: "Which Web API handles asynchronous HTTP requests?", options: ["fetch()", "http()", "request()", "connect()"], correct: 0 },
+            { cat: "js", q: "What does `Array.from()` do?", options: ["Creates an array from array-like or iterable object", "Flattens nested arrays", "Filters out duplicates", "Sorts items"], correct: 0 },
+            { cat: "js", q: "What is the default value of uninitialized variables declared with `let`?", options: ["undefined", "null", "0", "false"], correct: 0 },
+            { cat: "js", q: "What is the global object in browser JavaScript?", options: ["window", "global", "document", "process"], correct: 0 },
+            { cat: "js", q: "Which method adds elements to the beginning of an array?", options: ["unshift()", "push()", "prepend()", "shift()"], correct: 0 },
+            { cat: "js", q: "What does `Symbol()` guarantee in JavaScript?", options: ["A unique primitive value identifier", "Fast number calculation", "Immutable object reference", "Global variable binding"], correct: 0 },
+            { cat: "js", q: "What does `use strict` enforce?", options: ["Stricter parsing and error handling in JS code", "Disables async code", "Forces TypeScript compilation", "Encrypts scripts"], correct: 0 },
+
+            // --- PYTHON (30 Questions) ---
+            { cat: "python", q: "Which keyword defines a function in Python?", options: ["def", "function", "func", "define"], correct: 0 },
+            { cat: "python", q: "What is the time complexity of dictionary key lookup in Python?", options: ["O(1) average", "O(N)", "O(log N)", "O(N log N)"], correct: 0 },
+            { cat: "python", q: "Which data structure in Python is immutable?", options: ["Tuple", "List", "Dictionary", "Set"], correct: 0 },
+            { cat: "python", q: "What is the output of `type([])`?", options: ["<class 'list'>", "<class 'array'>", "<class 'tuple'>", "<class 'object'>"], correct: 0 },
+            { cat: "python", q: "How do you create a set in Python?", options: ["{1, 2, 3}", "[1, 2, 3]", "(1, 2, 3)", "<1, 2, 3>"], correct: 0 },
+            { cat: "python", q: "What does list comprehension `[x**2 for x in range(3)]` output?", options: ["[0, 1, 4]", "[1, 4, 9]", "[0, 1, 2]", "[1, 2, 3]"], correct: 0 },
+            { cat: "python", q: "Which method adds an item to the end of a list?", options: ["append()", "add()", "insert()", "push()"], correct: 0 },
+            { cat: "python", q: "What does PEP 8 define?", options: ["Python code style guide", "Database specification", "Compiler optimization rules", "Package index security"], correct: 0 },
+            { cat: "python", q: "What does `is` operator compare in Python?", options: ["Memory identity (location)", "Value equality", "Data type only", "Length of object"], correct: 0 },
+            { cat: "python", q: "How do you handle exceptions in Python?", options: ["try / except", "try / catch", "do / handle", "begin / error"], correct: 0 },
+            { cat: "python", q: "What is GIL in Python?", options: ["Global Interpreter Lock", "General Integration Layer", "Graphical Interface Library", "Generated Instruction Loop"], correct: 0 },
+            { cat: "python", q: "Which built-in returns the length of a container?", options: ["len()", "length()", "size()", "count()"], correct: 0 },
+            { cat: "python", q: "What is the output of `bool('')`?", options: ["False", "True", "None", "Error"], correct: 0 },
+            { cat: "python", q: "How do you get a list of dictionary keys?", options: ["dict.keys()", "dict.get_keys()", "dict.values()", "dict.list()"], correct: 0 },
+            { cat: "python", q: "What does `range(1, 5)` generate?", options: ["1, 2, 3, 4", "1, 2, 3, 4, 5", "0, 1, 2, 3, 4", "2, 3, 4, 5"], correct: 0 },
+            { cat: "python", q: "Which module provides mathematical functions like `sqrt`?", options: ["math", "sys", "os", "random"], correct: 0 },
+            { cat: "python", q: "What does `lambda` create in Python?", options: ["An anonymous inline function", "A database connection", "A class decorator", "A list iterator"], correct: 0 },
+            { cat: "python", q: "What operator is used for integer floor division?", options: ["//", "/", "%", "**"], correct: 0 },
+            { cat: "python", q: "What is the output of `'a' * 3`?", options: ["'aaa'", "'a3'", "Error", "['a','a','a']"], correct: 0 },
+            { cat: "python", q: "Which dunder method initializes an object instance?", options: ["__init__", "__new__", "__construct__", "__start__"], correct: 0 },
+            { cat: "python", q: "How do you remove duplicates from a list `lst`?", options: ["list(set(lst))", "lst.unique()", "lst.remove_dups()", "filter(lst)"], correct: 0 },
+            { cat: "python", q: "What does `sys.argv` contain?", options: ["Command line arguments passed to script", "System environment variables", "Python version info", "CPU core count"], correct: 0 },
+            { cat: "python", q: "What is a generator in Python?", options: ["A function that yields values using `yield`", "A code generator compiler tool", "A class builder", "A multithreading manager"], correct: 0 },
+            { cat: "python", q: "Which statement skips the current loop iteration?", options: ["continue", "break", "pass", "skip"], correct: 0 },
+            { cat: "python", q: "What does `zip()` function do?", options: ["Aggregates elements from multiple iterables", "Compresses text files", "Merges dictionaries by key", "Sorts twin lists"], correct: 0 },
+            { cat: "python", q: "What does `pass` keyword do?", options: ["Acts as a null placeholder statement", "Exits program", "Returns True", "Skips function execution"], correct: 0 },
+            { cat: "python", q: "Which collection type stores unique, unordered elements?", options: ["set", "list", "dict", "tuple"], correct: 0 },
+            { cat: "python", q: "What is the result of `5 % 2`?", options: ["1", "2.5", "2", "0"], correct: 0 },
+            { cat: "python", q: "What decorator turns a method into a read-only property?", options: ["@property", "@staticmethod", "@classmethod", "@getter"], correct: 0 },
+            { cat: "python", q: "How do you open a file safely for reading?", options: ["with open('file.txt', 'r') as f:", "f = open('file.txt')", "read('file.txt')", "file.open_read()"], correct: 0 },
+
+            // --- DATA STRUCTURES & ALGORITHMS (30 Questions) ---
+            { cat: "dsa", q: "What is the average time complexity of QuickSort?", options: ["O(N log N)", "O(N^2)", "O(N)", "O(log N)"], correct: 0 },
+            { cat: "dsa", q: "Which data structure uses LIFO (Last-In First-Out)?", options: ["Stack", "Queue", "Heap", "Linked List"], correct: 0 },
+            { cat: "dsa", q: "What data structure uses FIFO (First-In First-Out)?", options: ["Queue", "Stack", "Tree", "Graph"], correct: 0 },
+            { cat: "dsa", q: "What is the worst-case time complexity of Binary Search?", options: ["O(log N)", "O(N)", "O(1)", "O(N log N)"], correct: 0 },
+            { cat: "dsa", q: "Which graph traversal algorithm uses a Queue?", options: ["BFS (Breadth-First Search)", "DFS (Depth-First Search)", "Dijkstra", "Kruskal"], correct: 0 },
+            { cat: "dsa", q: "Which graph algorithm uses a Stack or recursion?", options: ["DFS (Depth-First Search)", "BFS", "Prim's", "Floyd-Warshall"], correct: 0 },
+            { cat: "dsa", q: "What data structure is used to implement a Priority Queue?", options: ["Heap", "Array", "Stack", "Trie"], correct: 0 },
+            { cat: "dsa", q: "What is the worst-case time complexity of Hash Map lookup with collisions?", options: ["O(N)", "O(1)", "O(log N)", "O(N^2)"], correct: 0 },
+            { cat: "dsa", q: "Which algorithm finds the shortest path in a weighted graph without negative weights?", options: ["Dijkstra's Algorithm", "BFS", "Bellman-Ford", "Kruskal's"], correct: 0 },
+            { cat: "dsa", q: "What is a Trie data structure optimal for?", options: ["Prefix search and autocomplete", "Numerical sorting", "Matrix multiplication", "Shortest path routing"], correct: 0 },
+            { cat: "dsa", q: "What is the space complexity of an adjacency matrix for V vertices?", options: ["O(V^2)", "O(V + E)", "O(E)", "O(V)"], correct: 0 },
+            { cat: "dsa", q: "Which sorting algorithm is stable and has O(N log N) worst-case time?", options: ["MergeSort", "QuickSort", "HeapSort", "SelectionSort"], correct: 0 },
+            { cat: "dsa", q: "What algorithm checks if a graph is bipartite?", options: ["BFS / 2-Coloring", "Dijkstra", "Kruskal", "Topological Sort"], correct: 0 },
+            { cat: "dsa", q: "What condition indicates a Binary Search Tree (BST)?", options: ["Left child < Node < Right child", "Node < Left child < Right child", "All nodes equal", "Root is always max"], correct: 0 },
+            { cat: "dsa", q: "What technique optimizes recursive dynamic programming by caching results?", options: ["Memoization", "Tabulation", "Greedy Choice", "Backtracking"], correct: 0 },
+            { cat: "dsa", q: "What is the height of a balanced Binary Search Tree with N nodes?", options: ["O(log N)", "O(N)", "O(1)", "O(N^2)"], correct: 0 },
+            { cat: "dsa", q: "Which algorithm finds Minimum Spanning Trees using Union-Find?", options: ["Kruskal's Algorithm", "Dijkstra", "Bellman-Ford", "DFS"], correct: 0 },
+            { cat: "dsa", q: "What algorithm orders DAG vertices linearly?", options: ["Topological Sort", "Inorder Traversal", "Preorder Traversal", "QuickSort"], correct: 0 },
+            { cat: "dsa", q: "What is the main property of a Max-Heap?", options: ["Parent key is >= children keys", "Parent key is <= children keys", "Left child > Right child", "Root is 0"], correct: 0 },
+            { cat: "dsa", q: "What is the time complexity of inserting into a Singly Linked List at head?", options: ["O(1)", "O(N)", "O(log N)", "O(N^2)"], correct: 0 },
+            { cat: "dsa", q: "What technique solves subproblems iteratively from bottom to top?", options: ["Tabulation", "Memoization", "Divide & Conquer", "Greedy"], correct: 0 },
+            { cat: "dsa", q: "Which technique detects loops in a linked list?", options: ["Floyd's Cycle-Finding (Fast & Slow pointers)", "Binary Search", "Two Sum Hash", "Dijkstra"], correct: 0 },
+            { cat: "dsa", q: "What is the worst-case time complexity of Bubble Sort?", options: ["O(N^2)", "O(N log N)", "O(N)", "O(1)"], correct: 0 },
+            { cat: "dsa", q: "Which problem can be solved in O(N) using Sliding Window?", options: ["Maximum Sum Subarray of size K", "Graph shortest path", "N-Queens", "Matrix Determinant"], correct: 0 },
+            { cat: "dsa", q: "What data structure handles Disjoint-Set Union (DSU)?", options: ["Union-Find with Path Compression", "Binary Heap", "Hash Table", "AVL Tree"], correct: 0 },
+            { cat: "dsa", q: "Which tree traversal visits Root -> Left -> Right?", options: ["Preorder Traversal", "Inorder Traversal", "Postorder Traversal", "Level-order Traversal"], correct: 0 },
+            { cat: "dsa", q: "Which tree traversal visits Left -> Root -> Right?", options: ["Inorder Traversal", "Preorder Traversal", "Postorder Traversal", "BFS"], correct: 0 },
+            { cat: "dsa", q: "What is the time complexity of Kadane's Algorithm for max subarray sum?", options: ["O(N)", "O(N^2)", "O(N log N)", "O(1)"], correct: 0 },
+            { cat: "dsa", q: "What is amortized time complexity of dynamic array expansion?", options: ["O(1)", "O(N)", "O(log N)", "O(N^2)"], correct: 0 },
+            { cat: "dsa", q: "What algorithm finds all-pairs shortest paths in a graph?", options: ["Floyd-Warshall Algorithm", "Dijkstra", "Prim's", "BFS"], correct: 0 },
+
+            // --- C++ / JAVA / SYSTEMS (30 Questions) ---
+            { cat: "systems", q: "In C++, which keyword allocates memory on the heap?", options: ["new", "malloc", "alloc", "create"], correct: 0 },
+            { cat: "systems", q: "In C++, what causes a segmentation fault?", options: ["Invalid memory access (null pointer dereference)", "Divide by zero", "Syntax error", "Compiler timeout"], correct: 0 },
+            { cat: "systems", q: "Which keyword in Java prevents class inheritance?", options: ["final", "static", "abstract", "private"], correct: 0 },
+            { cat: "systems", q: "What is RAII in C++?", options: ["Resource Acquisition Is Initialization", "Runtime Application Interface Infrastructure", "Random Array Index Inspection", "Read Access In Instruction"], correct: 0 },
+            { cat: "systems", q: "What is the size of `int` in standard 32/64-bit Systems C++?", options: ["4 bytes", "2 bytes", "8 bytes", "1 byte"], correct: 0 },
+            { cat: "systems", q: "Which component in Java manages automatic memory deallocation?", options: ["Garbage Collector (GC)", "JVM Allocator", "Bytecode Engine", "Heap Sanitizer"], correct: 0 },
+            { cat: "systems", q: "In C++, what does `std::vector::reserve()` do?", options: ["Preallocates memory capacity without changing size", "Resizes vector and initializes zeros", "Clears elements", "Sorts elements"], correct: 0 },
+            { cat: "systems", q: "What does the `volatile` keyword inform the compiler in C/C++?", options: ["Variable value may change externally; don't optimize out", "Variable is constant", "Variable is stored on stack", "Variable is private thread"], correct: 0 },
+            { cat: "systems", q: "What is the difference between process and thread?", options: ["Processes have separate address spaces; threads share process memory", "Threads are larger", "Processes share stack", "Threads have unique PID"], correct: 0 },
+            { cat: "systems", q: "In C++, which smart pointer owns an object exclusively?", options: ["std::unique_ptr", "std::shared_ptr", "std::weak_ptr", "std::auto_ptr"], correct: 0 },
+            { cat: "systems", q: "What bytecode format does Java compile into?", options: [".class files", ".exe files", ".so files", ".o files"], correct: 0 },
+            { cat: "systems", q: "What is a virtual function in C++ used for?", options: ["Polymorphism & dynamic dispatch", "Faster execution speed", "Memory encryption", "Inline template expansion"], correct: 0 },
+            { cat: "systems", q: "In C, which header provides `malloc` and `free`?", options: ["<stdlib.h>", "<stdio.h>", "<string.h>", "<memory.h>"], correct: 0 },
+            { cat: "systems", q: "What does `static` method mean in Java?", options: ["Belongs to class, not instance", "Cannot be invoked", "Runs on GPU", "Thread locked automatically"], correct: 0 },
+            { cat: "systems", q: "What is cache locality?", options: ["Data accessed close together in memory is cached efficiently", "Local disk storage speed", "Database query cache", "Web browser cache"], correct: 0 },
+            { cat: "systems", q: "In C++, what operator accesses member via pointer?", options: ["->", ".", "::", "=>"], correct: 0 },
+            { cat: "systems", q: "What is a deadlock in multithreading?", options: ["Two or more threads blocked forever waiting for each other's locks", "Thread execution completed", "High CPU usage", "Stack overflow crash"], correct: 0 },
+            { cat: "systems", q: "What memory region stores function call frames and local variables?", options: ["Stack", "Heap", "BSS Segment", "Data Segment"], correct: 0 },
+            { cat: "systems", q: "What memory region stores dynamically allocated memory (`malloc`/`new`)?", options: ["Heap", "Stack", "Code Segment", "Register"], correct: 0 },
+            { cat: "systems", q: "In Java, what exception is thrown when accessing index out of bounds?", options: ["ArrayIndexOutOfBoundsException", "NullPointerException", "IllegalArgumentException", "MemoryException"], correct: 0 },
+            { cat: "systems", q: "What does `constexpr` in C++11 ensure?", options: ["Expression evaluated at compile time", "Constant runtime reference", "Thread safe atomic variable", "Exported C symbol"], correct: 0 },
+            { cat: "systems", q: "What is a race condition?", options: ["Concurrent operations on shared resource produce non-deterministic results", "Memory leak in loop", "CPU overclocking bug", "Slow network socket"], correct: 0 },
+            { cat: "systems", q: "In C++, what does `std::move` do?", options: ["Casts rvalue reference to enable move semantics", "Copies object in RAM", "Deletes memory pointer", "Locks mutex"], correct: 0 },
+            { cat: "systems", q: "Which Java collection implements a resizable array?", options: ["ArrayList", "LinkedList", "Vector", "HashSet"], correct: 0 },
+            { cat: "systems", q: "What is POSIX?", options: ["Portable Operating System Interface standard", "Protocol On Socket Information Exchange", "Program Organization System", "Python Open Source Extension"], correct: 0 },
+            { cat: "systems", q: "What is the purpose of a Mutex?", options: ["Mutual exclusion lock to protect shared resources", "Multi-thread execution pipeline", "Memory allocation table", "Multiplexer hardware"], correct: 0 },
+            { cat: "systems", q: "In C++, what is a reference variable?", options: ["An alias for an existing variable", "A null-checked raw pointer", "A heap descriptor", "A global constant"], correct: 0 },
+            { cat: "systems", q: "In Java, which interface enables objects to be sorted automatically?", options: ["Comparable", "Serializable", "Cloneable", "Runnable"], correct: 0 },
+            { cat: "systems", q: "What header in C++ contains `std::cout`?", options: ["<iostream>", "<stdio.h>", "<stream>", "<console>"], correct: 0 },
+            { cat: "systems", q: "What causes a Stack Overflow error?", options: ["Infinite recursion consuming available stack frames", "Heap memory limit exceeded", "Buffer overflow vulnerability", "CPU overheating"], correct: 0 },
+
+            // --- SQL, GIT, LINUX & GENERAL CS (30 Questions) ---
+            { cat: "general", q: "Which SQL clause filters records after aggregation (`GROUP BY`)?", options: ["HAVING", "WHERE", "ORDER BY", "FILTER"], correct: 0 },
+            { cat: "general", q: "Which Git command creates and switches to a new branch simultaneously?", options: ["git checkout -b <branch>", "git branch create", "git new-branch", "git switch -c"], correct: 0 },
+            { cat: "general", q: "What Linux command displays running processes in real-time?", options: ["top", "ps", "htop", "proc"], correct: 0 },
+            { cat: "general", q: "In SQL, what constraint guarantees value uniqueness across column?", options: ["UNIQUE", "PRIMARY KEY", "CHECK", "DISTINCT"], correct: 0 },
+            { cat: "general", q: "What Git command stages modified changes for commit?", options: ["git add .", "git commit", "git push", "git stage"], correct: 0 },
+            { cat: "general", q: "What HTTP response status code represents '200'?", options: ["OK (Success)", "Created", "Not Found", "Internal Server Error"], correct: 0 },
+            { cat: "general", q: "What Linux permission code `755` represents in rwx format?", options: ["rwxr-xr-x", "rwxrwxrwx", "rw-r--r--", "r-xr-xr-x"], correct: 0 },
+            { cat: "general", q: "In SQL, what JOIN returns only matching records from both tables?", options: ["INNER JOIN", "LEFT JOIN", "FULL OUTER JOIN", "RIGHT JOIN"], correct: 0 },
+            { cat: "general", q: "What Git command updates local repository with remote changes and merges?", options: ["git pull", "git fetch", "git clone", "git sync"], correct: 0 },
+            { cat: "general", q: "What Linux command changes file ownership?", options: ["chown", "chmod", "chgrp", "touch"], correct: 0 },
+            { cat: "general", q: "What does ACID stand for in Database Systems?", options: ["Atomicity, Consistency, Isolation, Durability", "Access, Control, Index, Data", "Automated Concurrent Integration Database", "Array Collection In Memory Data"], correct: 0 },
+            { cat: "general", q: "What HTTP status code represents '404'?", options: ["Not Found", "Unauthorized", "Forbidden", "Bad Request"], correct: 0 },
+            { cat: "general", q: "What Git command undoes last local commit while keeping changes staged?", options: ["git reset --soft HEAD~1", "git reset --hard", "git revert", "git checkout"], correct: 0 },
+            { cat: "general", q: "What Linux command searches for text patterns inside files?", options: ["grep", "find", "locate", "cat"], correct: 0 },
+            { cat: "general", q: "In SQL, what statement removes all rows from a table quickly without logging individual row deletes?", options: ["TRUNCATE", "DELETE", "DROP", "REMOVE"], correct: 0 },
+            { cat: "general", q: "What does DNS stand for?", options: ["Domain Name System", "Digital Network Storage", "Direct Node Server", "Data Network Service"], correct: 0 },
+            { cat: "general", q: "What Git command shows commit history log?", options: ["git log", "git history", "git status", "git list"], correct: 0 },
+            { cat: "general", q: "What Linux command creates a new directory?", options: ["mkdir", "touch", "dir", "create"], correct: 0 },
+            { cat: "general", q: "In SQL, what key links a record to the primary key of another table?", options: ["FOREIGN KEY", "PRIMARY KEY", "COMPOSITE KEY", "INDEX KEY"], correct: 0 },
+            { cat: "general", q: "What HTTP status code represents '500'?", options: ["Internal Server Error", "Bad Gateway", "Service Unavailable", "Unauthorized"], correct: 0 },
+            { cat: "general", q: "What Git command stashes uncommitted changes temporarily?", options: ["git stash", "git save", "git pause", "git hide"], correct: 0 },
+            { cat: "general", q: "What Linux command displays current working directory?", options: ["pwd", "cd", "ls", "path"], correct: 0 },
+            { cat: "general", q: "In SQL, what aggregate function calculates total sum of numeric column?", options: ["SUM()", "TOTAL()", "COUNT()", "ADD()"], correct: 0 },
+            { cat: "general", q: "What layer of OSI model handles IP addressing and routing?", options: ["Network Layer (Layer 3)", "Transport Layer", "Data Link Layer", "Application Layer"], correct: 0 },
+            { cat: "general", q: "What Git command merges a specific commit from another branch?", options: ["git cherry-pick", "git merge --commit", "git apply", "git pull --rebase"], correct: 0 },
+            { cat: "general", q: "What Linux command displays disk space usage?", options: ["df -h", "du", "free", "disk"], correct: 0 },
+            { cat: "general", q: "In SQL, what keyword eliminates duplicate records in SELECT query?", options: ["DISTINCT", "UNIQUE", "GROUP BY", "SEPARATE"], correct: 0 },
+            { cat: "general", q: "What protocol operates securely on TCP port 443?", options: ["HTTPS", "HTTP", "SSH", "FTP"], correct: 0 },
+            { cat: "general", q: "What Linux command displays memory RAM usage?", options: ["free -m", "top", "mem", "vmstat"], correct: 0 },
+            { cat: "general", q: "In Database design, what process reduces data redundancy?", options: ["Normalization", "Indexing", "Denormalization", "Sharding"], correct: 0 }
+        ];
+
+        // Byte Racer Game Controller State
+        let arcadeCategory = "all";
+        let arcadeActive = false;
+        let arcadeScore = 0;
+        let arcadeStreak = 0;
+        let arcadeTimer = 60;
+        let arcadeInterval = null;
+        let currentDeck = [];
+        let currentQuestionIdx = 0;
+
+        function setArcadeCategory(cat) {
+            arcadeCategory = cat;
+            document.querySelectorAll('.cat-btn').forEach(btn => {
+                btn.className = "cat-btn px-3 py-1.5 rounded-lg bg-slate-900 border border-cardBorder text-slate-300";
+            });
+            const activeBtn = document.getElementById(`cat-${cat}`);
+            if (activeBtn) activeBtn.className = "cat-btn px-3 py-1.5 rounded-lg bg-amber-500 text-black font-bold";
+        }
+
+        function startByteRacer() {
+            arcadeActive = true;
+            arcadeScore = 0;
+            arcadeStreak = 0;
+            arcadeTimer = 60;
+            currentQuestionIdx = 0;
+
+            // Prepare question deck by category & shuffle
+            let pool = arcadeCategory === "all" ? arcadeQuestionBank : arcadeQuestionBank.filter(q => q.cat === arcadeCategory);
+            currentDeck = [...pool].sort(() => Math.random() - 0.5);
+
+            document.getElementById('arcade-start-btn').classList.add('hidden');
+            document.getElementById('arcade-score').textContent = arcadeScore;
+            document.getElementById('arcade-streak').textContent = `${arcadeStreak}x`;
+            document.getElementById('arcade-timer').textContent = arcadeTimer;
+
+            loadNextArcadeQuestion();
+
+            if (arcadeInterval) clearInterval(arcadeInterval);
+            arcadeInterval = setInterval(() => {
+                arcadeTimer--;
+                document.getElementById('arcade-timer').textContent = arcadeTimer;
+                if (arcadeTimer <= 0) {
+                    endByteRacer();
+                }
+            }, 1000);
+        }
+
+        function loadNextArcadeQuestion() {
+            if (currentQuestionIdx >= currentDeck.length) {
+                currentDeck = [...currentDeck].sort(() => Math.random() - 0.5);
+                currentQuestionIdx = 0;
+            }
+            const qObj = currentDeck[currentQuestionIdx];
+            document.getElementById('arcade-question-cat').textContent = `CATEGORY: ${qObj.cat.toUpperCase()} • QUESTION ${currentQuestionIdx + 1} OF ${currentDeck.length}`;
+            document.getElementById('arcade-question').textContent = qObj.q;
+
+            const optionsBox = document.getElementById('arcade-options');
+            optionsBox.innerHTML = '';
+
+            let optsWithIdx = qObj.options.map((opt, i) => ({ opt, isCorrect: i === qObj.correct }));
+            optsWithIdx.sort(() => Math.random() - 0.5);
+
+            optsWithIdx.forEach(o => {
+                const btn = document.createElement('button');
+                btn.className = "w-full text-left px-4 py-3 rounded-xl bg-slate-900 hover:bg-cyan-500/20 border border-cardBorder text-slate-200 hover:text-white transition flex items-center justify-between";
+                btn.innerHTML = `<span>${o.opt}</span><i class="fa-solid fa-chevron-right text-slate-600 text-xs"></i>`;
+                btn.onclick = () => answerArcadeQuestion(o.isCorrect);
+                optionsBox.appendChild(btn);
+            });
+        }
+
+        function answerArcadeQuestion(isCorrect) {
+            if (!arcadeActive) return;
+            if (isCorrect) {
+                arcadeStreak++;
+                let streakMult = Math.min(arcadeStreak, 5);
+                let addedScore = 100 * streakMult;
+                arcadeScore += addedScore;
+                arcadeTimer += 3;
+                document.getElementById('arcade-score').textContent = arcadeScore;
+                document.getElementById('arcade-streak').textContent = `${arcadeStreak}x`;
+                showToast(`Correct! +${addedScore} PTS & +3s Nitro!`, 'success');
+            } else {
+                arcadeStreak = 0;
+                arcadeScore = Math.max(0, arcadeScore - 50);
+                arcadeTimer = Math.max(0, arcadeTimer - 2);
+                document.getElementById('arcade-score').textContent = arcadeScore;
+                document.getElementById('arcade-streak').textContent = `0x`;
+                showToast(`Wrong answer! -50 PTS & -2s Penalty`, 'info');
+            }
+            currentQuestionIdx++;
+            loadNextArcadeQuestion();
+        }
+
+        function endByteRacer() {
+            arcadeActive = false;
+            clearInterval(arcadeInterval);
+            document.getElementById('arcade-question-cat').textContent = "SPEEDRUN COMPLETED";
+            document.getElementById('arcade-question').innerHTML = `
+                <div>
+                    <div class="text-xl font-bold text-white mb-1">Race Finished!</div>
+                    <div class="text-amber-400 font-bold text-sm">Final Nitro Score: ${arcadeScore} XP</div>
+                </div>
+            `;
+            document.getElementById('arcade-options').innerHTML = `
+                <div class="text-center text-emerald-400 font-bold text-xs py-3 bg-slate-950 rounded-xl border border-emerald-500/30">
+                    ★ ${arcadeScore} XP Earned Synced with Profile! ★
+                </div>
+            `;
+            const startBtn = document.getElementById('arcade-start-btn');
+            startBtn.textContent = "Play Byte Racer Speedrun Again";
+            startBtn.classList.remove('hidden');
+
+            if (arcadeScore > 0) {
+                const user = getStoredUser();
+                user.xp += arcadeScore;
+                setStoredUser(user);
+                if (window.confetti) confetti({ particleCount: 90, spread: 80, origin: { y: 0.6 } });
+            }
+        }
+    </script>
+</body>
+</html>
