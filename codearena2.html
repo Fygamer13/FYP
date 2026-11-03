@@ -347,6 +347,17 @@
                     </div>
                 </div>
 
+                <!-- Dynamic Topic Preview: updates whenever a topic is selected -->
+                <div id="topic-preview-panel" class="cyber-panel p-5 rounded-2xl border border-cyan-500/30 mb-8 max-w-5xl mx-auto">
+                    <div id="topic-preview-title" class="flex items-center gap-2 text-cyan-300 font-mono font-bold mb-2">TOPIC PREVIEW</div>
+                    <p id="topic-preview-description" class="text-sm text-slate-300 mb-3"></p>
+                    <div class="grid sm:grid-cols-2 gap-3 text-xs">
+                        <div class="bg-slate-950 rounded-xl p-3"><strong class="text-purple-300">Key idea</strong><p id="topic-preview-key" class="text-slate-400 mt-1"></p></div>
+                        <div class="bg-slate-950 rounded-xl p-3"><strong class="text-emerald-300">Example</strong><p id="topic-preview-example" class="text-slate-400 mt-1"></p></div>
+                    </div>
+                    <button id="topic-preview-target-btn" onclick="targetCurrentPreviewTopic()" class="mt-3 px-4 py-2 rounded-lg bg-cyan-500/20 border border-cyan-500/40 text-cyan-300 text-xs font-bold hover:bg-cyan-500/30">Target this topic in AI Matrix</button>
+                </div>
+
                 <!-- Quest Filters -->
                 <div class="flex flex-wrap items-center justify-center gap-2 sm:gap-3 mb-8 sm:mb-10 font-mono text-xs">
                     <button onclick="filterQuests('all')" class="quest-filter-btn px-3 sm:px-4 py-2 rounded-xl bg-cyan-500/20 text-cyan-300 border border-cyan-500/40">All Dungeons</button>
@@ -500,6 +511,11 @@
                     <!-- Boss Arena Top Bar HUD -->
                     <div id="arena-boss-hud" class="bg-slate-950 p-4 sm:p-6 border-b border-cardBorder relative">
                         <!-- Dynamic active boss content will render here -->
+                    </div>
+
+                    <div class="mx-4 sm:mx-6 my-4 p-4 rounded-xl bg-cyan-950/20 border border-cyan-500/30">
+                        <div class="flex flex-wrap justify-between gap-2 mb-2"><strong id="arena-topic-preview-title" class="text-cyan-300 text-sm">TOPIC PREVIEW / CHALLENGE</strong><button id="arena-load-example-btn" onclick="loadCurrentTopicChallenge()" class="text-xs px-3 py-1 rounded bg-cyan-500/20 border border-cyan-500/40 text-cyan-200">Load Topic Example</button></div>
+                        <p id="arena-topic-preview-description" class="text-xs text-slate-300"></p>
                     </div>
 
                     <!-- Code Editor Control Header -->
@@ -692,6 +708,10 @@
                                 <div class="text-slate-400 text-[9px] sm:text-[10px]">92% Accuracy</div>
                             </div>
                         </div>
+                    </div>
+                    <div class="mt-5 p-3 rounded-xl bg-emerald-950/20 border border-emerald-500/30 text-xs font-mono flex flex-wrap justify-between gap-2">
+                        <span class="text-emerald-300"><i class="fa-solid fa-circle animate-pulse mr-2"></i><span id="leaderboard-live-status">LIVE DEMO • syncing player XP</span></span>
+                        <span class="text-slate-400">Your XP: <strong id="leaderboard-user-xp" class="text-amber-300">0</strong></span>
                     </div>
                 </div>
             </section>
@@ -951,13 +971,72 @@
         // ==========================================
         // 3. WEAK TOPICS SELECTION & AI ENGINE STATE
         // ==========================================
+        const topicPreviewData = {
+            dp: {label:'Dynamic Programming',icon:'fa-brain',description:'Break a problem into overlapping subproblems and reuse solved states.',key:'Define dp[state], base cases, and a transition; memoize or fill a table.',example:'Fibonacci: dp[n] = dp[n-1] + dp[n-2].'},
+            graphs: {label:'Graphs & Dijkstra',icon:'fa-network-wired',description:'Model connections as vertices and edges; find shortest paths in weighted graphs.',key:'Use a priority queue and relax edges when a shorter distance is found.',example:'Edges A→B (2), A→C (5), B→C (1): shortest A→C is 3 via B.'},
+            hashmap: {label:'Hash Maps & Two Pointers',icon:'fa-arrows-left-right',description:'Use fast key lookup or coordinated pointers to avoid unnecessary nested scans.',key:'Store seen values/indices in a map, or move pointers based on a condition.',example:'Two Sum: for each x, look up target − x in the map.'},
+            trees: {label:'Trees & Heaps',icon:'fa-sitemap',description:'Represent hierarchical data with nodes; use heaps for efficient min/max access.',key:'Tree traversal visits nodes; a binary heap supports peek in O(1) and insert/remove in O(log n).',example:'A min-heap of [7, 2, 5] pops 2 first.'},
+            binarysearch: {label:'Binary Search',icon:'fa-magnifying-glass',description:'Find a target in sorted data by repeatedly halving the search interval.',key:'Maintain low/high bounds and update them using the midpoint comparison.',example:'In [1, 3, 5, 7, 9], target 7 is found by checking middle values.'},
+            slidingwindow: {label:'Sliding Window',icon:'fa-sliders',description:'Track a moving contiguous range to solve array or string problems efficiently.',key:'Expand the right edge and shrink the left edge when a constraint is violated.',example:'Longest substring without repeats: move left past a duplicate character.'},
+            quadratic: {label:'Quadratic Equations',icon:'fa-square-root-variable',description:'Solve ax² + bx + c = 0 using the discriminant and quadratic formula.',key:'D = b² − 4ac. For D ≥ 0, roots are x = (−b ± √D) / (2a); handle a = 0 separately.',example:'x² − 5x + 6 = 0 → D = 1 → roots x = 2 and x = 3.'}
+        };
+        let selectedPreviewTopicId = 'dp';
+
+        function renderTopicPreview(topicId) {
+            const topic = topicPreviewData[topicId] || topicPreviewData.dp;
+            selectedPreviewTopicId = topicId in topicPreviewData ? topicId : 'dp';
+            const title = document.getElementById('topic-preview-title');
+            if (title) title.innerHTML = `<i class="fa-solid ${topic.icon}"></i> TOPIC PREVIEW: ${topic.label.toUpperCase()}`;
+            const desc = document.getElementById('topic-preview-description');
+            const key = document.getElementById('topic-preview-key');
+            const example = document.getElementById('topic-preview-example');
+            if (desc) desc.textContent = topic.description;
+            if (key) key.textContent = topic.key;
+            if (example) example.textContent = topic.example;
+            renderArenaTopicPreview(topicId);
+        }
+
+        function targetCurrentPreviewTopic() {
+            if (!selectedWeaknessIds.includes(selectedPreviewTopicId)) selectedWeaknessIds.push(selectedPreviewTopicId);
+            renderWeaknessSelector();
+            renderQuests();
+            showToast(`${topicPreviewData[selectedPreviewTopicId].label} added to AI weakness targets.`, 'info');
+        }
+
+        function renderArenaTopicPreview(topicId) {
+            const topic = topicPreviewData[topicId] || topicPreviewData.dp;
+            const title = document.getElementById('arena-topic-preview-title');
+            const desc = document.getElementById('arena-topic-preview-description');
+            const button = document.getElementById('arena-load-example-btn');
+            if (title) title.textContent = `TOPIC PREVIEW / CHALLENGE: ${topic.label.toUpperCase()}`;
+            if (desc) desc.textContent = `${topic.description} Key idea: ${topic.key} Example: ${topic.example} Test cases and line diagnostics are shown after running the judge.`;
+            if (button) button.textContent = `Load ${topic.label} Example`;
+        }
+
+        function loadCurrentTopicChallenge() {
+            const topicId = selectedPreviewTopicId || activeBossQuest?.topicCategory || 'dp';
+            if (topicId === 'quadratic') { loadQuadraticChallenge(); return; }
+            const codeSamples = {
+                dp: `def fib(n):\n    if n <= 1: return n  # Line 2: base case\n    dp = [0, 1]\n    for i in range(2, n + 1):\n        dp.append(dp[i-1] + dp[i-2])  # Line 5: transition\n    return dp[n]\n\nprint(fib(6))`,
+                graphs: `import heapq\ndef dijkstra(graph, start):\n    dist = {start: 0}  # Line 2: initialize\n    pq = [(0, start)]\n    while pq:  # Line 4: process nearest node\n        d, u = heapq.heappop(pq)\n        if d != dist[u]: continue\n        for v, w in graph[u]:\n            nd = d + w  # Line 8: relax edge\n            if nd < dist.get(v, float('inf')):\n                dist[v] = nd; heapq.heappush(pq, (nd, v))\n    return dist`,
+                hashmap: `def two_sum(nums, target):\n    seen = {}  # Line 2: lookup table\n    for i, value in enumerate(nums):\n        need = target - value  # Line 4: complement\n        if need in seen: return [seen[need], i]  # Line 5: match\n        seen[value] = i\n    return []\n\nprint(two_sum([2, 7, 11], 9))`,
+                trees: `import heapq\nvalues = [7, 2, 5]\nheapq.heapify(values)  # Line 3: build min-heap\nsmallest = heapq.heappop(values)  # Line 4: remove minimum\nprint(smallest)`,
+                binarysearch: `def binary_search(nums, target):\n    low, high = 0, len(nums)-1\n    while low <= high:  # Line 3: active range\n        mid = (low + high)//2\n        if nums[mid] == target: return mid  # Line 5: found\n        if nums[mid] < target: low = mid + 1\n        else: high = mid - 1\n    return -1\n\nprint(binary_search([1,3,5,7,9], 7))`,
+                slidingwindow: `def longest_unique(s):\n    seen = {}; left = best = 0\n    for right, ch in enumerate(s):  # Line 3: expand window\n        if ch in seen and seen[ch] >= left: left = seen[ch] + 1  # Line 4: shrink\n        seen[ch] = right\n        best = max(best, right-left+1)  # Line 6: update answer\n    return best\n\nprint(longest_unique('abca'))`
+            };
+            document.getElementById('demo-lang').value = 'python';
+            document.getElementById('arena-code-input').value = codeSamples[topicId] || codeSamples.dp;
+            showToast(`${topicPreviewData[topicId]?.label || 'Topic'} example loaded.`, 'info');
+        }
+
         const weakTopicsList = [
             { id: 'dp', label: 'Dynamic Programming', icon: 'fa-brain' },
             { id: 'graphs', label: 'Graphs & Dijkstra', icon: 'fa-network-wired' },
             { id: 'hashmap', label: 'Hash Maps & Two Pointers', icon: 'fa-arrows-left-right' },
             { id: 'trees', label: 'Trees & Heaps', icon: 'fa-sitemap' },
             { id: 'binarysearch', label: 'Binary Search', icon: 'fa-magnifying-glass' },
-            { id: 'slidingwindow', label: 'Sliding Window', icon: 'fa-sliders' }
+            { id: 'slidingwindow', label: 'Sliding Window', icon: 'fa-sliders' },
+            { id: 'quadratic', label: 'Quadratic Equations', icon: 'fa-square-root-variable' }
         ];
 
         let selectedWeaknessIds = ['dp', 'graphs']; // Default weak spots
@@ -975,7 +1054,7 @@
                         ? 'bg-rose-500/20 text-rose-300 border-rose-500/60 font-bold' 
                         : 'bg-slate-900 text-slate-400 border-cardBorder hover:text-white'
                 }`;
-                btn.onclick = () => toggleWeaknessTopic(topic.id);
+                btn.onclick = () => { toggleWeaknessTopic(topic.id); renderTopicPreview(topic.id); };
                 btn.innerHTML = `
                     <span class="flex items-center space-x-2 truncate">
                         <i class="fa-solid ${topic.icon} text-xs"></i>
@@ -1000,6 +1079,7 @@
             showToast(`AI Adaptive Engine target updated!`, 'info');
         }
         renderWeaknessSelector();
+        renderTopicPreview('dp');
 
         // ==========================================
         // 4. DYNAMIC QUESTS & BOSS FIGHT ENGINE
@@ -1110,7 +1190,27 @@
                     { testId: 1, name: "Interval Range Sum", lines: "Lines 2-5", purpose: "Tests segment tree node splitting for O(log N) sum query.", input: "Query Range [1, 3]", expected: "Sum = 18" }
                 ]
             }
-        ];
+                    ,
+            {
+                id: 301,
+                name: "Quadratic Equation Oracle",
+                bossName: "ROOTS OF CHAOS",
+                icon: "fa-square-root-variable",
+                tier: "Novice",
+                xp: 250,
+                maxHp: 240,
+                currentHp: 240,
+                topicCategory: "quadratic",
+                topic: "Quadratic Equations",
+                desc: "Find real roots using the discriminant and quadratic formula.",
+                mechanic: "Handle positive, zero, and negative discriminants; avoid division by zero when a = 0.",
+                testSuite: [
+                    { testId: 1, name: "Two Distinct Real Roots", lines: "Lines 2-5", purpose: "Computes discriminant and both roots.", input: "a=1, b=-5, c=6", expected: "[2, 3]" },
+                    { testId: 2, name: "Repeated Root", lines: "Lines 3-5", purpose: "Checks D = 0 and returns one repeated root.", input: "a=1, b=2, c=1", expected: "[-1, -1]" },
+                    { testId: 3, name: "No Real Roots", lines: "Lines 3-4", purpose: "Checks negative discriminant and returns no real roots.", input: "a=1, b=1, c=1", expected: "[]" }
+                ]
+            }
+];
 
         let activeBossQuest = questData[0]; // Active Boss in Battle Arena
 
@@ -1190,6 +1290,7 @@
         function openQuestModal(questId) {
             const quest = questData.find(q => q.id === questId);
             if (!quest) return;
+            renderTopicPreview(quest.topicCategory || 'dp');
             const modal = document.getElementById('quest-modal');
             const card = document.getElementById('quest-modal-card');
             const body = document.getElementById('quest-modal-body');
@@ -1255,6 +1356,7 @@
             const quest = questData.find(q => q.id === questId);
             if (!quest) return;
             activeBossQuest = quest;
+            renderTopicPreview(quest.topicCategory || 'dp');
             updateArenaBossHUD();
             closeQuestModal();
             navigateTo('arena');
@@ -1391,6 +1493,25 @@
             }
         }
 
+        function loadQuadraticChallenge() {
+            document.getElementById('demo-lang').value = 'python';
+            document.getElementById('arena-code-input').value = `import math
+def solve_quadratic(a, b, c):
+    # Line 3: discriminant determines real-root cases
+    d = b*b - 4*a*c
+    if a == 0:
+        return []
+    if d < 0:
+        return []
+    # Lines 9-10: quadratic formula
+    root1 = (-b + math.sqrt(d)) / (2*a)
+    root2 = (-b - math.sqrt(d)) / (2*a)
+    return [root1, root2]
+
+print(solve_quadratic(1, -5, 6))`;
+            showToast('Quadratic Equation example loaded into editor.', 'info');
+        }
+
         function executeBattleSimulation() {
             const btn = document.getElementById('submit-code-btn');
             const consoleBox = document.getElementById('arena-output-console');
@@ -1451,6 +1572,22 @@
                     </div>
                 `;
 
+                const topicId = selectedPreviewTopicId || activeBossQuest.topicCategory || 'dp';
+                const judgeOutputByTopic = {
+                    quadratic: {output:'[2.0, 3.0]', trace:'Line 4 computes D = b² − 4ac; Lines 9–10 calculate roots; the return line outputs both roots.'},
+                    dp: {output:'8', trace:'Line 2 handles the base case; Line 5 applies the DP transition; the final line returns dp[n].'},
+                    graphs: {output:'{A: 0, B: 2, C: 3}', trace:'Line 2 initializes distance; Line 8 relaxes an edge; the priority queue processes the shortest tentative path.'},
+                    hashmap: {output:'[0, 1]', trace:'Line 4 computes the complement; Line 5 finds the matching index; the map stores seen values.'},
+                    trees: {output:'2', trace:'Line 3 heapifies the values; Line 4 pops the minimum element.'},
+                    binarysearch: {output:'3', trace:'Line 3 checks the active range; Line 5 returns the target index; bounds are updated to halve the search interval.'},
+                    slidingwindow: {output:'3', trace:'Line 3 expands the window; Line 4 moves the left boundary after a duplicate; Line 6 updates the best length.'}
+                };
+                const judgeResult = judgeOutputByTopic[topicId] || judgeOutputByTopic.dp;
+                logsHtml += `<div class="p-3 mt-2 rounded-xl bg-slate-950 border border-cyan-500/30 text-xs font-mono">
+                    <div class="text-cyan-300 font-bold mb-1">PROGRAM OUTPUT — ${topicPreviewData[topicId]?.label || 'Selected Topic'}</div>
+                    <div class="text-emerald-300">${judgeResult.output}</div>
+                    <div class="text-slate-400 mt-2">Line trace: ${judgeResult.trace}</div>
+                </div>`;
                 consoleBox.innerHTML = logsHtml;
                 statusTag.className = "px-3 py-1 rounded-md text-[10px] font-bold bg-emerald-500/20 text-emerald-400 glow-cyan";
                 statusTag.textContent = "ACCEPTED ✓";
@@ -1762,6 +1899,27 @@
                 if (window.confetti) confetti({ particleCount: 90, spread: 80, origin: { y: 0.6 } });
             }
         }
+    </script>
+ 
+    <script>
+        // Live leaderboard demo: refreshes the local player's XP from the site's user store.
+        function refreshLiveLeaderboard() {
+            try {
+                const user = typeof getStoredUser === 'function' ? getStoredUser() : { xp: 0 };
+                const xp = Number(user && user.xp || 0);
+                const xpEl = document.getElementById('leaderboard-user-xp');
+                if (xpEl) xpEl.textContent = xp.toLocaleString();
+                const status = document.getElementById('leaderboard-live-status');
+                if (status) status.textContent = 'LIVE DEMO • refreshed ' + new Date().toLocaleTimeString();
+            } catch (e) {
+                const status = document.getElementById('leaderboard-live-status');
+                if (status) status.textContent = 'LIVE DEMO • local preview mode';
+            }
+        }
+        document.addEventListener('DOMContentLoaded', () => {
+            refreshLiveLeaderboard();
+            setInterval(refreshLiveLeaderboard, 3000);
+        });
     </script>
 </body>
 </html>
